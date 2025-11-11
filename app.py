@@ -67,9 +67,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.signal import find_peaks
 
-# In app.py, replace the analyze_and_plot_qca_phase function with this corrected version:
-
-def analyze_and_plot_qca_phase(alpha=0.8, N=4, lambda_min=0.1, lambda_max=1.5, num_points=20, save_prefix="qca_results"):
+def analyze_and_plot_qca_phase(alpha=0.8, N=6, lambda_min=0.1, lambda_max=1.5, num_points=20, save_prefix="qca_results"):
     """
     Complete analysis of QCA phase diagram with corrected revival detection.
     """
@@ -295,8 +293,6 @@ def analyze_and_plot_qca_phase(alpha=0.8, N=4, lambda_min=0.1, lambda_max=1.5, n
     plt.savefig(plot_filename, dpi=300, bbox_inches='tight')
     print(f"🖼️  Phase diagram saved to: {plot_filename}")
     
-    plt.show()
-    
     # Print summary
     print("\n" + "="*60)
     print("CORRECTED CRITICAL POINT ANALYSIS")
@@ -412,7 +408,6 @@ def full_phase_diagram(N=4, save_prefix="qca_results"):
     plt.tight_layout()
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     print(f"\n🖼️  2D phase diagram saved to: {filename}")
-    plt.show()
     
     return df
 
@@ -946,7 +941,6 @@ class QCATester:
             template='plotly_white'
         )
         
-        fig1.show()
         
         # 2. Bond dimensions
         fig2 = go.Figure()
@@ -967,7 +961,6 @@ class QCATester:
             template='plotly_white'
         )
         
-        fig2.show()
         
         # 3. Postulate validation
         fig3 = go.Figure()
@@ -1000,7 +993,6 @@ class QCATester:
             template='plotly_white'
         )
         
-        fig3.show()
         
         return fig1, fig2, fig3
 
@@ -1160,7 +1152,6 @@ def scan_lambda(alpha=0.8, N=4, lambda_min=0.1, lambda_max=1.5, num_points=15):
     ax4.grid(True, alpha=0.3)
     
     plt.tight_layout()
-    plt.show()
     
 def analyze_critical_points(df):
     """Find the λ values where phase transitions occur"""
@@ -1205,7 +1196,6 @@ def phase_diagram(N=4, lambda_vals=[0.1, 0.5, 1.0], alpha_vals=[0.2, 0.5, 0.8]):
     plt.xlabel('α (postulate coefficient)')
     plt.ylabel('λ (promotion strength)')
     plt.title('Postulate 1: Phase Diagram')
-    plt.show()
 
 # %%
 # Run the simulation
