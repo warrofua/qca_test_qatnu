@@ -1,0 +1,11 @@
+QATNU/SRQID Production Run Summary
+========================================
+N=5, α=0.8, points=100
+Critical Points:
+  λ_c1: 0.21911764705882356
+  λ_rev: 0.3382352941176471 (R=0.10200014554699821)
+  λ_c2: 0.9842105263157895
+SRQID Validations:
+  v_LR: 1.959999999999999
+  No-signalling: 4.195e-16
+  Energy drift: 4.974e-14
