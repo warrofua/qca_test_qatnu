@@ -51,7 +51,7 @@ figures/              # generated plots (timestamped subfolders)
 outputs/              # CSVs & summary logs (timestamped subfolders)
 ```
 
-To regenerate a figure mentioned in the docs, rerun `app.py` with the appropriate flags; the CLI prints the run tag plus the saved artifact paths.
+To regenerate a figure mentioned in the docs, rerun `app.py` with the appropriate flags; the CLI prints the run tag plus the saved artifact paths. For snapshots of recent runs (including embedded figures), read [docs/results.md](docs/results.md).
 
 ## Ancillary Dataverse scripts
 The `dataverse_files/` folder contains the original toy-model numerics (Ising SRQID checks, Hadamard light-cone, stochastic spin-2 PSD, etc.). They are preserved for reference but are not part of the main workflow. You can run them via the included `Makefile` inside that folder if you need the legacy comparison plots.

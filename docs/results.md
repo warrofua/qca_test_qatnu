@@ -6,8 +6,8 @@
 - **Mean-field overlay**: best-fit configuration at λ ≈ 1.058 shows exact and mean-field Ramsey traces re-locking during the revival.
 - **Spin-2 PSD**: χ-informed PSD currently undershoots the expected 1/k² slope (measured power ≈ −0.024); further tuning of the χ→tier mapping is underway.
 
-Artifacts (clickable paths):
-- Phase diagram: `figures/run_20251116-154356_N4_alpha0.80/phase_diagram_run_20251116-154356_N4_alpha0.80.png`
+![N4 phase diagram](../figures/run_20251116-154356_N4_alpha0.80/phase_diagram_run_20251116-154356_N4_alpha0.80.png)
+
 - Ramsey overlay: `figures/run_20251116-154356_N4_alpha0.80/ramsey_overlay_run_20251116-154356_N4_alpha0.80.png`
 - Spin-2 PSD: `figures/run_20251116-154356_N4_alpha0.80/spin2_psd_run_20251116-154356_N4_alpha0.80.png`
 - CSV data: `outputs/run_20251116-154356_N4_alpha0.80/scan_run_20251116-154356_N4_alpha0.80.csv`
@@ -16,9 +16,11 @@ Artifacts (clickable paths):
 ## N = 5, α = 0.8, 100 λ points (legacy run)
 - **Critical points** (from `legacy outputs-figures/summary_N5.txt`): λ_c1 ≈ 0.219, λ_rev ≈ 0.338 (residual ≈ 10.2%), λ_c2 ≈ 0.984.
 - **SRQID checks**: v_LR ≈ 1.96, no-signalling ≈ 4.2×10⁻¹⁶, energy drift ≈ 5.0×10⁻¹⁴.
-- **Phase diagram**: `legacy outputs-figures/phase_diagram_N5_alpha0.8.png`
-- **Scan CSV**: `legacy outputs-figures/scan_N5_alpha0.8.csv`
-- **Summary**: `legacy outputs-figures/summary_N5.txt`
+
+![N5 phase diagram](../legacy%20outputs-figures/phase_diagram_N5_alpha0.8.png)
+
+- Scan CSV: `legacy outputs-figures/scan_N5_alpha0.8.csv`
+- Summary: `legacy outputs-figures/summary_N5.txt`
 
 The fully timestamped N=5 scan (run_20251116-160216_N5_alpha0.80) is currently running; results will be appended once the job completes.
 
