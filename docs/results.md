@@ -23,8 +23,3 @@
 - Summary: `legacy outputs-figures/summary_N5.txt`
 
 The fully timestamped N=5 scan (run_20251116-160216_N5_alpha0.80) is currently running; results will be appended once the job completes.
-
-## How to extend
-1. Run `python app.py --N 4 --alpha 0.8 --points 100 --phase-space` for the canonical dataset.
-2. For N=5, reduce `--points` (e.g., 40–50) and focus density around λ∈[0.5,0.9] to keep runtimes manageable.
-3. After each run, copy the summary lines into this document and link the new figure/CSV paths so collaborators can trace the provenance.
