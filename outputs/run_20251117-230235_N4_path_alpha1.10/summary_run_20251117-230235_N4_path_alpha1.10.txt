@@ -1,0 +1,33 @@
+QATNU/SRQID Production Run Summary
+============================================================
+Timestamp: 20251117-230235
+Run tag: run_20251117-230235_N4_path_alpha1.10
+N=4, graph=path, α=1.1, points=80
+
+Critical Points:
+  lambda_c1: 0.18035714285714288
+  lambda_revival: 1.3133333333333335
+  lambda_c2: 1.3599999999999999
+  residual_min: 0.1325446858883189
+
+SRQID Validations:
+  v_LR: 1.959999999999999
+  No-signalling: 2.083e-16
+  Energy drift: 1.421e-14
+
+Mean-field Comparison:
+  λ_focus: 1.3133
+  Residual: 1.3254e-01
+  Measured ω_out / ω_in: 3.4212 / 3.4212
+  Predicted ω_out / ω_in: 0.7466 / 0.6477
+
+Spin-2 PSD:
+  Measured power: -0.052
+  Expected power: 2.000
+  Residual: 2.052e+00
+
+Artifacts:
+  scan: outputs/run_20251117-230235_N4_path_alpha1.10/scan_run_20251117-230235_N4_path_alpha1.10.csv
+  phase_diagram: figures/run_20251117-230235_N4_path_alpha1.10/phase_diagram_run_20251117-230235_N4_path_alpha1.10.png
+  spin2_psd: figures/run_20251117-230235_N4_path_alpha1.10/spin2_psd_run_20251117-230235_N4_path_alpha1.10.png
+  ramsey_overlay: figures/run_20251117-230235_N4_path_alpha1.10/ramsey_overlay_run_20251117-230235_N4_path_alpha1.10.png

@@ -1,3 +1,9 @@
+docs/status_202511.aux
+docs/status_202511.log
+docs/status_202511.out
+docs/status_202511.pdf
+docs/status_202511.synctex.gz
 .DS_Store
 venv/
 __pycache__/
+.cache

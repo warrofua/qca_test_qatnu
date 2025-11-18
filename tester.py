@@ -3,7 +3,7 @@ Single-point experiments combining exact QCA and mean-field comparators.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,7 +15,16 @@ from mean_field import QuantumChain
 class QCATester:
     """Unified tester combining exact, mean-field, and validation."""
 
-    def __init__(self, N: int = 4, alpha: float = 0.8, bond_cutoff: int = 4):
+    def __init__(
+        self,
+        N: int = 4,
+        alpha: float = 0.8,
+        bond_cutoff: int = 4,
+        edges: Optional[List[Tuple[int, int]]] = None,
+        probes: Optional[Tuple[int, int]] = None,
+    ):
+        self.edges = edges
+        self.probes = probes if probes is not None else (0, 1 if N > 1 else 0)
         self.parameters = {
             "N": N,
             "omega": 1.0,
@@ -27,20 +36,38 @@ class QCATester:
             "bondCutoff": bond_cutoff,
             "J0": 0.01,
             "gamma": 0.0,
-            "probeOut": 0,
-            "probeIn": 1,
+            "probeOut": self.probes[0],
+            "probeIn": self.probes[1],
             "tMax": 20.0,
+            "edges": self.edges,
         }
+        self._is_path = self._edges_form_path()
+
+    def _edges_form_path(self) -> bool:
+        if not self.edges:
+            return True
+        expected = [(i, i + 1) for i in range(max(self.parameters["N"] - 1, 0))]
+        return self.edges == expected
 
     def run_exact_experiment(self, config: Dict = None):
         if config is None:
             config = self.parameters
 
-        qca = ExactQCA(config["N"], config, bond_cutoff=config["bondCutoff"])
+        qca = ExactQCA(
+            config["N"],
+            config,
+            bond_cutoff=config["bondCutoff"],
+            edges=config.get("edges"),
+        )
 
         hotspot_config = config.copy()
         hotspot_config["lambda"] = config["lambda"] * 3.0
-        qca_hotspot = ExactQCA(config["N"], hotspot_config, bond_cutoff=config["bondCutoff"])
+        qca_hotspot = ExactQCA(
+            config["N"],
+            hotspot_config,
+            bond_cutoff=config["bondCutoff"],
+            edges=config.get("edges"),
+        )
         ground_state = qca.get_ground_state()
         frustrated_state = qca_hotspot.evolve_state(ground_state, 1.0)
 
@@ -57,9 +84,10 @@ class QCATester:
                 data_list.append({"t": t, "Z": Z_t})
 
         bond_dims = []
-        for edge in range(config["N"] - 1):
-            chi = qca.get_bond_dimension(edge, frustrated_state)
-            bond_dims.append({"edge": edge, "chi": chi})
+        edge_total = len(qca.edges)
+        for edge_idx in range(edge_total):
+            chi = qca.get_bond_dimension(edge_idx, frustrated_state)
+            bond_dims.append({"edge": edge_idx, "chi": chi})
 
         depth_out = qca.count_circuit_depth(config["probeOut"], frustrated_state)
         depth_in = qca.count_circuit_depth(config["probeIn"], frustrated_state)
@@ -145,7 +173,9 @@ class QCATester:
 
     def run_full_validation(self, config: Dict = None):
         exact = self.run_exact_experiment(config)
-        mean_field = self.run_mean_field_comparison(exact)
+        mean_field = None
+        if self._is_path:
+            mean_field = self.run_mean_field_comparison(exact)
         validation = self.validate_postulate(exact)
         return exact, mean_field, validation
 

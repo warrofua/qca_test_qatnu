@@ -28,6 +28,8 @@ Command-line options:
 - `--alpha` : Postulate‑1 coupling in `ω/(1+αΛ)`
 - `--points` : number of λ samples in the 1-D scan
 - `--phase-space` : additionally generate the 2-D (α, λ) heatmap
+- `--graph` : topology of the matter-bond network (`path`, `cycle`, `diamond`, `bowtie`, `pyramid/star`, etc.)
+- `--probes` : override the outer/inner probe vertices (defaults are topology-dependent)
 
 Each run creates timestamped directories:
 ```
@@ -35,6 +37,10 @@ outputs/run_YYYYMMDD-HHMMSS_N{N}_alpha{α}
 figures/run_YYYYMMDD-HHMMSS_N{N}_alpha{α}
 ```
 containing CSVs, summaries, phase diagrams, mean-field overlays, and spin-2 PSD plots. See `docs/results.md` for the latest run highlights.
+
+Optional extras:
+- `--graph ... --probes ...` : explore alternate geometries (cycle, diamond, bowtie, pyramid/star) and choose which vertices serve as “outer”/“inner” probes.
+- `--legacy-viz` : after the main workflow, run `dataverse_files/qatnu_poc.py` to regenerate the Dataverse light-cone/dispersion/MERA figures alongside the new outputs.
 
 ## Project layout
 ```

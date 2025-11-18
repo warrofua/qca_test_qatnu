@@ -3,7 +3,7 @@ Core exact-diagonalization utilities for QATNU/SRQID simulations.
 """
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from scipy.linalg import eigh
@@ -41,37 +41,61 @@ class ExactQCA:
     Memory-efficient construction with pre-computed lookup tables.
     """
 
-    def __init__(self, N: int, config: Dict, bond_cutoff: int = 4):
+    def __init__(
+        self,
+        N: int,
+        config: Dict,
+        bond_cutoff: int = 4,
+        edges: Optional[List[Tuple[int, int]]] = None,
+    ):
         self.N = N
         self.config = config
         self.bond_cutoff = bond_cutoff
+        self.edges = edges if edges is not None else [(i, i + 1) for i in range(max(N - 1, 0))]
+        self.edge_count = len(self.edges)
 
         self.matter_dim = 2**N
-        self.bond_dim = bond_cutoff ** (N - 1)
+        if self.edge_count > 0:
+            self.bond_dim = bond_cutoff ** self.edge_count
+            self.bond_powers = [bond_cutoff**i for i in range(self.edge_count)][::-1]
+        else:
+            self.bond_dim = 1
+            self.bond_powers = [1]
         self.total_dim = self.matter_dim * self.bond_dim
-
-        self.bond_powers = [bond_cutoff**i for i in range(N - 1)][::-1]
 
         self.Z_lookup = np.ones((self.matter_dim, self.N), dtype=np.int8)
         for i in range(N):
             self.Z_lookup[:, i] = 1 - 2 * ((np.arange(self.matter_dim) >> i) & 1)
+
+        self.incident_edges = [[] for _ in range(self.N)]
+        for edge_idx, (u, v) in enumerate(self.edges):
+            self.incident_edges[u].append(edge_idx)
+            self.incident_edges[v].append(edge_idx)
 
         self.H = self._build_hamiltonian()
         self._eig = None
 
     @staticmethod
     def get_entanglement_profile(qca: "ExactQCA", state: np.ndarray) -> List[float]:
-        return [qca.get_bond_dimension(edge, state) for edge in range(qca.N - 1)]
+        return [qca.get_bond_dimension(edge_idx, state) for edge_idx in range(qca.edge_count)]
 
     def decode_bond_config(self, bond_index: int) -> List[int]:
         config, remaining = [], bond_index
         for power in self.bond_powers:
             config.append(remaining // power)
             remaining %= power
-        return config[::-1]
+        result = config[::-1]
+        if self.edge_count == 0:
+            return []
+        return result
 
     def state_index(self, matter_state: int, bond_config: List[int]) -> int:
-        bond_index = sum(val * self.bond_powers[i] for i, val in enumerate(bond_config))
+        if self.edge_count == 0:
+            bond_index = 0
+        else:
+            bond_index = sum(
+                val * self.bond_powers[i] for i, val in enumerate(bond_config[: self.edge_count])
+            )
         return matter_state * self.bond_dim + bond_index
 
     def _build_hamiltonian(self) -> np.ndarray:
@@ -87,12 +111,12 @@ class ExactQCA:
                 j = self.state_index(flipped, bond_config)
                 H[idx, j] += self.config["omega"] / 2.0
 
-            for edge in range(self.N - 1):
-                i, j = edge, edge + 1
+            for edge_idx, (i, j) in enumerate(self.edges):
                 Zi, Zj = Z_vals[i], Z_vals[j]
 
                 H[idx, idx] += self.config["J0"] * Zi * Zj
-                H[idx, idx] += self.config["deltaB"] * bond_config[edge]
+                if self.edge_count > 0:
+                    H[idx, idx] += self.config["deltaB"] * bond_config[edge_idx]
 
                 d_i = self._calculate_degree(i, bond_config)
                 d_j = self._calculate_degree(j, bond_config)
@@ -101,27 +125,27 @@ class ExactQCA:
 
                 F = 0.5 * (1.0 - Zi * Zj)
 
-                if bond_config[edge] < self.bond_cutoff - 1:
-                    new_config = bond_config.copy()
-                    new_config[edge] += 1
-                    jdx = self.state_index(matter_state, new_config)
-                    H[idx, jdx] += self.config["lambda"] * F
+                if self.edge_count > 0:
+                    if bond_config[edge_idx] < self.bond_cutoff - 1:
+                        new_config = bond_config.copy()
+                        new_config[edge_idx] += 1
+                        jdx = self.state_index(matter_state, new_config)
+                        H[idx, jdx] += self.config["lambda"] * F
 
-                if bond_config[edge] > 0:
-                    new_config = bond_config.copy()
-                    new_config[edge] -= 1
-                    jdx = self.state_index(matter_state, new_config)
-                    H[idx, jdx] += self.config["lambda"] * F
+                    if bond_config[edge_idx] > 0:
+                        new_config = bond_config.copy()
+                        new_config[edge_idx] -= 1
+                        jdx = self.state_index(matter_state, new_config)
+                        H[idx, jdx] += self.config["lambda"] * F
 
         H = (H + H.T) * 0.5
         return H
 
     def _calculate_degree(self, site: int, bond_config: List[int]) -> int:
         degree = 0
-        if site > 0 and bond_config[site - 1] > 0:
-            degree += 1
-        if site < self.N - 1 and bond_config[site] > 0:
-            degree += 1
+        for edge_idx in self.incident_edges[site]:
+            if bond_config and bond_config[edge_idx] > 0:
+                degree += 1
         return degree
 
     def diagonalize(self):

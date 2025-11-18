@@ -18,10 +18,13 @@ class ParameterScanner:
     """Parallel parameter scanning with adaptive sampling."""
 
     @staticmethod
-    def run_single_point(args: Tuple[int, float, float, float, int]) -> Dict:
+    def run_single_point(
+        args: Tuple[int, float, float, float, int, Tuple[Tuple[int, int], ...], Tuple[int, int]]
+    ) -> Dict:
         import sys
+        from copy import deepcopy
 
-        N, alpha, lambda_param, tMax, bond_cutoff = args
+        N, alpha, lambda_param, tMax, bond_cutoff, edges, probes = args
 
         print(
             f"🔄 Worker {os.getpid()} starting: N={N}, λ={lambda_param:.3f}",
@@ -38,18 +41,23 @@ class ParameterScanner:
             "bondCutoff": bond_cutoff,
             "J0": 0.01,
             "gamma": 0.0,
+            "probeOut": probes[0],
+            "probeIn": probes[1],
+            "edges": list(edges),
         }
 
-        qca = ExactQCA(N, config, bond_cutoff=bond_cutoff)
-        hotspot_config = config.copy()
+        edge_list = list(edges)
+
+        qca = ExactQCA(N, config, bond_cutoff=bond_cutoff, edges=edge_list)
+        hotspot_config = deepcopy(config)
         hotspot_config["lambda"] = lambda_param * 3.0
-        qca_hotspot = ExactQCA(N, hotspot_config, bond_cutoff=bond_cutoff)
+        qca_hotspot = ExactQCA(N, hotspot_config, bond_cutoff=bond_cutoff, edges=edge_list)
         ground_state = qca.get_ground_state()
         frustrated_state = qca_hotspot.evolve_state(ground_state, 1.0)
 
         t_grid = np.linspace(0, tMax, 80)
 
-        probe_sites = [0, 1]
+        probe_sites = list(probes)
         measured_freqs: List[float] = []
 
         for site in probe_sites:
@@ -72,8 +80,8 @@ class ParameterScanner:
 
             measured_freqs.append(np.clip(freq, 0.1, 5.0))
 
-        lambda_out = qca.count_circuit_depth(0, frustrated_state)
-        lambda_in = qca.count_circuit_depth(1, frustrated_state)
+        lambda_out = qca.count_circuit_depth(probes[0], frustrated_state)
+        lambda_in = qca.count_circuit_depth(probes[1], frustrated_state)
 
         predicted_out = 1.0 / (1.0 + alpha * lambda_out)
         predicted_in = 1.0 / (1.0 + alpha * lambda_in)
@@ -104,10 +112,18 @@ class ParameterScanner:
         bond_cutoff: int = 4,
         output_dir: Optional[str] = None,
         run_tag: Optional[str] = None,
+        edges: Optional[List[Tuple[int, int]]] = None,
+        probes: Optional[Tuple[int, int]] = None,
     ) -> pd.DataFrame:
         print(f"\n🔬 Parallel λ scan: N={N}, α={alpha}, points={num_points}")
         print(f"Using {os.cpu_count()} cores")
         print(f"Environment: VECLIB_MAXIMUM_THREADS={os.environ.get('VECLIB_MAXIMUM_THREADS')}")
+
+        if edges is None:
+            edges = [(i, i + 1) for i in range(max(N - 1, 0))]
+        if probes is None:
+            probes = (0, 1 if N > 1 else 0)
+        edges_tuple = tuple(tuple(edge) for edge in edges)
 
         lambda_vals = np.unique(
             np.concatenate(
@@ -119,7 +135,9 @@ class ParameterScanner:
             )
         )
 
-        args_list = [(N, alpha, l, 20.0, bond_cutoff) for l in lambda_vals]
+        args_list = [
+            (N, alpha, l, 20.0, bond_cutoff, edges_tuple, probes) for l in lambda_vals
+        ]
 
         results = []
         with ProcessPoolExecutor(max_workers=6) as executor:
@@ -151,15 +169,24 @@ class ParameterScanner:
         bond_cutoff: int = 4,
         output_dir: Optional[str] = None,
         run_tag: Optional[str] = None,
+        edges: Optional[List[Tuple[int, int]]] = None,
+        probes: Optional[Tuple[int, int]] = None,
     ) -> pd.DataFrame:
         if lambda_vals is None:
             lambda_vals = np.linspace(0.1, 1.2, 12)
         if alpha_vals is None:
             alpha_vals = np.array([0.2, 0.4, 0.6, 0.8, 1.0, 1.2])
+        if edges is None:
+            edges = [(i, i + 1) for i in range(max(N - 1, 0))]
+        if probes is None:
+            probes = (0, 1 if N > 1 else 0)
+        edges_tuple = tuple(tuple(edge) for edge in edges)
 
         print(f"\n🗺️ 2D phase space: {len(lambda_vals)}×{len(alpha_vals)}={len(lambda_vals)*len(alpha_vals)} points")
 
-        args_list = [(N, a, l, 15.0, bond_cutoff) for a in alpha_vals for l in lambda_vals]
+        args_list = [
+            (N, a, l, 15.0, bond_cutoff, edges_tuple, probes) for a in alpha_vals for l in lambda_vals
+        ]
 
         results = []
         with ProcessPoolExecutor(max_workers=6) as executor:

@@ -3,12 +3,16 @@ from __future__ import annotations
 import argparse
 import os
 import platform
+import subprocess
+import sys
 from datetime import datetime
-from typing import Dict, Optional
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+from pathlib import Path
 
 from core_qca import ExactQCA
 from geometry import EmergentGeometryAnalyzer
@@ -17,11 +21,12 @@ from runtime_config import configure_runtime, detect_accelerate
 from scanners import ParameterScanner
 from srqid import SRQIDValidators
 from tester import QCATester, plot_ramsey_overlay
+from topologies import get_topology
 
 
-def _timestamped_dirs(N: int, alpha: float) -> Dict[str, str]:
+def _timestamped_dirs(N: int, alpha: float, graph: str) -> Dict[str, str]:
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-    run_tag = f"run_{ts}_N{N}_alpha{alpha:.2f}"
+    run_tag = f"run_{ts}_N{N}_{graph}_alpha{alpha:.2f}"
     output_dir = os.path.join("outputs", run_tag)
     fig_dir = os.path.join("figures", run_tag)
     os.makedirs(output_dir, exist_ok=True)
@@ -42,7 +47,9 @@ def _write_summary(summary_path: str, context: Dict) -> None:
         f.write("=" * 60 + "\n")
         f.write(f"Timestamp: {context['timestamp']}\n")
         f.write(f"Run tag: {context['tag']}\n")
-        f.write(f"N={context['N']}, α={context['alpha']}, points={context['num_points']}\n\n")
+        f.write(
+            f"N={context['N']}, graph={context.get('graph','path')}, α={context['alpha']}, points={context['num_points']}\n\n"
+        )
 
         f.write("Critical Points:\n")
         for name in ("lambda_c1", "lambda_revival", "lambda_c2"):
@@ -77,8 +84,13 @@ def production_run(
     alpha: float = 0.8,
     num_points: int = 100,
     run_phase_space: bool = False,
+    edges: Optional[List[Tuple[int, int]]] = None,
+    probes: Tuple[int, int] = (0, 1),
+    graph_name: str = "path",
 ) -> Dict:
-    dirs = _timestamped_dirs(N, alpha)
+    if edges is None:
+        edges = [(i, i + 1) for i in range(max(N - 1, 0))]
+    dirs = _timestamped_dirs(N, alpha, graph_name)
     timestamp = dirs["timestamp"]
     run_tag = dirs["tag"]
 
@@ -86,6 +98,7 @@ def production_run(
     print("QATNU/SRQID PRODUCTION RUN")
     print("=" * 60)
     print(f"Parameters: N={N}, α={alpha}, points={num_points}")
+    print(f"Graph topology: {graph_name}, probes={probes}")
     print(f"System: {platform.system()} ({platform.machine()})")
     print(f"Run tag: {run_tag}")
     print("=" * 60)
@@ -97,6 +110,8 @@ def production_run(
         num_points=num_points,
         output_dir=dirs["outputs"],
         run_tag=run_tag,
+        edges=edges,
+        probes=probes,
     )
 
     analyzer = PhaseAnalyzer()
@@ -121,19 +136,24 @@ def production_run(
         "bondCutoff": 4,
         "J0": 0.01,
         "gamma": 0.0,
+        "probeOut": probes[0],
+        "probeIn": probes[1],
+        "edges": edges,
     }
-    qca_val = ExactQCA(N, test_config)
+    qca_val = ExactQCA(N, test_config, edges=edges)
     v_lr, _ = SRQIDValidators.extract_lr_velocity(qca_val)
     ns_violation = SRQIDValidators.no_signalling_quench(qca_val)
     energy_err = SRQIDValidators.energy_drift(qca_val)
 
-    tester = QCATester(N=N, alpha=alpha)
+    tester = QCATester(N=N, alpha=alpha, edges=edges, probes=probes)
     lambda_focus = _choose_lambda_focus(crit, default=df["lambda"].iloc[len(df) // 2])
     tester_config = tester.parameters.copy()
     tester_config["lambda"] = lambda_focus
     exact, mean_field, validation = tester.run_full_validation(config=tester_config)
-    overlay_path = os.path.join(dirs["figures"], f"ramsey_overlay_{run_tag}.png")
-    plot_ramsey_overlay(exact, mean_field, overlay_path, title_prefix="Ramsey")
+    overlay_path = None
+    if mean_field is not None:
+        overlay_path = os.path.join(dirs["figures"], f"ramsey_overlay_{run_tag}.png")
+        plot_ramsey_overlay(exact, mean_field, overlay_path, title_prefix="Ramsey")
 
     chi_profile = [d["chi"] for d in exact["bondDims"]]
     geom = EmergentGeometryAnalyzer(rng_seed=int(datetime.now().timestamp()))
@@ -145,9 +165,10 @@ def production_run(
     artifacts = {
         "scan": os.path.join(dirs["outputs"], f"scan_{run_tag}.csv"),
         "phase_diagram": phase_path,
-        "ramsey_overlay": overlay_path,
         "spin2_psd": spin2_path,
     }
+    if overlay_path:
+        artifacts["ramsey_overlay"] = overlay_path
 
     summary_path = os.path.join(dirs["outputs"], f"summary_{run_tag}.txt")
     context = {
@@ -156,6 +177,7 @@ def production_run(
         "N": N,
         "alpha": alpha,
         "num_points": num_points,
+        "graph": graph_name,
         "critical_points": crit,
         "v_lr": v_lr,
         "ns_violation": ns_violation,
@@ -175,6 +197,8 @@ def production_run(
             N=N,
             output_dir=dirs["outputs"],
             run_tag=run_tag,
+            edges=edges,
+            probes=probes,
         )
         heatmap_path = os.path.join(dirs["figures"], f"phase_space_{run_tag}.png")
         _plot_phase_space_heatmap(df_2d, heatmap_path)
@@ -212,12 +236,49 @@ def _plot_phase_space_heatmap(df: pd.DataFrame, save_path: str) -> None:
     plt.close()
 
 
+def run_legacy_visuals() -> None:
+    """Execute the Dataverse proof-of-concept visualization scripts."""
+    legacy_script = Path("dataverse_files/qatnu_poc.py")
+    if not legacy_script.exists():
+        print("⚠️  Legacy visualization script not found; skipping.")
+        return
+    print("\n" + "=" * 60)
+    print("Running legacy visualization (qatnu_poc.py)")
+    print("=" * 60)
+    try:
+        subprocess.run(
+            [sys.executable, str(legacy_script)],
+            check=True,
+        )
+        print("✅ Legacy visualization completed.")
+    except subprocess.CalledProcessError as exc:
+        print(f"⚠️  Legacy visualization failed with return code {exc.returncode}.")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="QATNU/SRQID unified simulation driver")
     parser.add_argument("--N", type=int, default=5, help="Number of sites")
     parser.add_argument("--alpha", type=float, default=0.8, help="Postulate coefficient")
     parser.add_argument("--points", type=int, default=100, help="Number of λ scan points")
     parser.add_argument("--phase-space", action="store_true", help="Run 2D phase space scan")
+    parser.add_argument(
+        "--legacy-viz",
+        action="store_true",
+        help="Also run the Dataverse legacy visualization scripts (qatnu_poc).",
+    )
+    parser.add_argument(
+        "--graph",
+        type=str,
+        default="path",
+        help="Graph topology (path, cycle, diamond, bowtie, pyramid/star).",
+    )
+    parser.add_argument(
+        "--probes",
+        type=int,
+        nargs=2,
+        metavar=("OUTER", "INNER"),
+        help="Override probe vertex indices (outer, inner).",
+    )
     return parser.parse_args()
 
 
@@ -236,7 +297,19 @@ def main():
         print("🍎 macOS detected: using 'forkserver' start method")
 
     args = parse_args()
-    production_run(N=args.N, alpha=args.alpha, num_points=args.points, run_phase_space=args.phase_space)
+    topology = get_topology(args.graph, args.N)
+    probes = tuple(args.probes) if args.probes else topology.probes
+    production_run(
+        N=args.N,
+        alpha=args.alpha,
+        num_points=args.points,
+        run_phase_space=args.phase_space,
+        edges=topology.edges,
+        probes=probes,
+        graph_name=topology.name,
+    )
+    if args.legacy_viz:
+        run_legacy_visuals()
 
 
 if __name__ == "__main__":

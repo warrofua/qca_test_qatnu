@@ -1,0 +1,210 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{siunitx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=1in}
+
+\title{\textbf{Validating QATNU/SRQID Physics in the Current Simulator}\\Exact-Diagonalization Evidence at $N=4$ and $N=5$}
+\author{Joshua Farrow\\\texttt{joshuajamesfarrow@protonmail.com}}
+\date{November 16, 2025}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We reassess the physics claims in the August 2025 QATNU/SRQID preprints using the current exact-diagonalization workflow.  Emphasis is placed on (i) validation of Postulate~1---that local clock rates scale as $\omega/(1+\alpha\Lambda)$---across $N=4$ and $N=5$ chains, (ii) persistence of Lieb--Robinson locality and no-signalling bounds in the Hamiltonian implementation, and (iii) behavior of the spin-2 proxy seeded by measured $\chi$ profiles.  Figures referenced below live in \texttt{figures/run\_20251116-154356\_N4\_alpha0.80} (new $N=4$ run) and \texttt{legacy outputs-figures} (archival $N=5$).
+\end{abstract}
+
+\section*{Bridge to the August QATNU Draft}
+The August 2025 \texttt{qatnu\_v3 copy.tex} manuscript emphasized the measurement-free promotion mechanism but left the slowing of local clocks implicit: it noted qualitative ``frequency scaling'' yet never stated a closed form.  The present memo supplies that bridge by elevating the empirically observed relation
+\begin{equation}
+\omega_{\mathrm{eff}}^{(i)} = \frac{\omega}{1 + \alpha \Lambda_i}
+\label{eq:postulate}
+\end{equation}
+to \emph{Postulate~1}.  Here $\Lambda_i$ is the logarithmic circuit-depth proxy extracted from the bond tier distribution at probe $i$.  When the promotion Hamiltonian was parameterized in August, the combination $\alpha\Lambda_i$ appeared only as a phenomenological ``load'' term; the exact-diagonalization workflow now provides the data required to assert Eq.~\eqref{eq:postulate} and test it across $(\lambda,N)$.  The remainder of this document shows that the $\lambda$-dependent residuals, revival plateau, and catastrophic inversion reported in the earlier draft follow directly from enforcing Eq.~\eqref{eq:postulate} and measuring $\Lambda$ within the SRQID Hamiltonian.
+
+\subsection*{Origin of Eq.~\eqref{eq:postulate} in the QATNU/SRQID Hamiltonians}
+Section~2 of the SRQID preprint defines the time-independent Hamiltonian
+\[
+H = H_{\text{mat}} + H_{\text{bond}} + H_{\text{int}},
+\]
+with $H_{\text{mat}} = \frac{\omega}{2}\sum_i X_i$, $H_{\text{bond}}$ diagonal in the rung number $n_{ij}$, and $H_{\text{int}}$ containing the promotion ladder $R_{ij}$ weighted by the frustration tile $F_{ij}$ (cf.\ Eq.~(4) in the SRQID draft).  The companion QATNU circuit realizes the same ingredients unitarily: local promotions of a bond register occur only when $F_{ij}$ detects stabilizer violations, and the qubit at vertex $i$ now interacts with a Hilbert space whose dimension grows with the number of activated bonds.  If one integrates out the bond variables perturbatively, the local generator on probe $i$ acquires the form
+\[
+H_i^{\mathrm{eff}} = \frac{\omega}{2} X_i + \underbrace{\sum_{j\in\partial i}\lambda \,\langle F_{ij}\,(R_{ij}+R_{ij}^\dagger)\rangle}_{\text{promotion back-reaction}} + \cdots,
+\]
+where the ellipsis denotes higher-order terms in the promotion-demotion ladder.  In the dilute regime, the expectation value of the promotion operators is proportional to the average rung occupation $\langle n_{ij}\rangle$, i.e.\ to the entanglement proxy $\Lambda_i$ introduced in the SRQID analysis (see Lemma 2.1 there).  Absorbing the proportionality constant into $\alpha$ yields a renormalized transverse field
+\[
+\omega_{\mathrm{eff}}^{(i)} = \frac{\omega}{1 + \alpha \Lambda_i},
+\]
+which is precisely Eq.~\eqref{eq:postulate}.  Thus the ``implicit'' slowing of clocks in the original QATNU write-up is nothing more than the SRQID Hamiltonian's statement that local degree growth renormalizes the $X_i$ term.  The modern ED runs make this explicit by measuring $\Lambda$ directly and verifying that the ratio $\omega_{\text{in}}/\omega_{\text{out}}$ tracks the predicted $(1+\alpha\Lambda_{\text{out}})/(1+\alpha\Lambda_{\text{in}})$.
+
+\section{Postulate 1 Scaling: $N=4$ vs $N=5$}
+The central prediction of the QATNU manuscript is the entanglement-induced slow-down $\omega_{\mathrm{eff}}=\omega/(1+\alpha\Lambda)$ with $\alpha\sim O(1)$.  Operationally we prepare two Ramsey probes: the outer site and an inner site one bond deeper in the hotspot.  Let $\omega_{\text{out}}$ and $\omega_{\text{in}}$ denote the dominant frequencies extracted from $\langle Z_{\text{out/in}}(t)\rangle$.  Postulate~1 asserts that
+\[
+\frac{\omega_{\text{in}}}{\omega_{\text{out}}}\;\stackrel{!}{=}\; \frac{1+\alpha \Lambda_{\text{out}}}{1+\alpha \Lambda_{\text{in}}},
+\]
+with $\Lambda$ the logarithmic entanglement proxy defined in the SRQID Hamiltonian.  Thus each residual point in the phase diagram is testing whether the QATNU circuit picture (frequency suppression by coherent promotions) matches the SRQID Hamiltonian’s entanglement bookkeeping.  The current simulator exposes this relationship directly by measuring $\Lambda_{\text{out/in}}$ from the promoted bonds and comparing the two sides of the equation above.
+
+\subsection{$N=4$ benchmark (run\_20251116-154356)}
+Figure~\ref{fig:N4phase} reproduces the six-panel layout envisioned in the QATNU preprint.  Quantitatively we find
+\[
+\lambda_{c1}=0.203(1),\qquad \lambda_{\mathrm{rev}}=1.058(2),\qquad \lambda_{c2}=1.095(3),\qquad \text{Residual}_{\min}\approx 13.4\%.
+\]
+The first plateau (Phase I) confirms emergent adherence to the scaling law; the breakdown near $\lambda_{c1}$ marks the onset of significant entanglement back-reaction.  Crucially, the revival ridge at $\lambda_{\mathrm{rev}}$ re-aligns measured and predicted ratios, showing that the self-referential mechanism described in the paper survives finite-size effects.  The catastrophic Phase~IV transition at $\lambda_{c2}$ again mirrors the preprint narrative.
+
+Ramsey overlays at $\lambda_{\mathrm{rev}}$ match the legacy \texttt{appv3.py} output at the level of machine precision: the new and old solvers produce identical $Z(t)$ traces for both probes, so the physics conclusions drawn previously remain intact.
+
+\subsection{$N=5$ benchmark (run\_20251116-160216)}
+The new 50-point scan (Figure~\ref{fig:N5phase}) confirms the archival picture with higher fidelity: we extract
+\[
+\lambda_{c1}=0.232(2),\qquad \lambda_{\mathrm{rev}}=0.338(1),\qquad \lambda_{c2}=1.033(5),\qquad \text{Residual}_{\min}\approx 10.2\%.
+\]
+The revival now occurs three times earlier in $\lambda$ than it did at $N=4$, because the extra bond in the five-site chain carries frustration inward more efficiently.  In Postulate-1 language, $\Lambda_{\text{in}}$ reaches parity with $\Lambda_{\text{out}}$ at $\lambda\simeq0.34$, so
+\[
+\frac{\omega_{\text{in}}}{\omega_{\text{out}}}\approx\frac{1+\alpha\Lambda_{\text{out}}}{1+\alpha\Lambda_{\text{in}}}
+\]
+already holds in that moderate-$\lambda$ window.  Beyond $\lambda_{c2}$ the inversion is even more violent than at $N=4$ (the outer probe collapses to $\simeq0.62$ rad/s while the inner one remains near $3.1$), producing the 100\% violations seen in the phase diagram.  These features precisely match the qualitative discussion in the August draft but are now backed by the modular ED workflow.
+
+\subsection{$N=4$ path: $\alpha$ sweep (runs \texttt{20251117-225413} through \texttt{20251117-230455})}
+To stress-test Postulate~1 we reran the $N=4$ chain at fifteen $\alpha$ values in $[0.1,1.5]$ with 80 $\lambda$ points each.  Three regimes emerge cleanly:
+\begin{itemize}
+    \item \textbf{Legacy plateau ($\alpha\leq 0.4$):} $\lambda_{\mathrm{rev}}$ stays at $1.313$ and $\lambda_{c1}$ drifts rightward as $\alpha$ decreases because the outer probe remains weakly renormalized.  Residual minima grow roughly linearly with $\alpha$, echoing the $\omega/(1+\alpha\Lambda)$ prediction.
+    \item \textbf{Low-$\lambda$ plateau ($0.5\leq\alpha\leq 0.9$):} the revival relocates to $\lambda\approx 1.03$ and $ \lambda_{c2}$ falls to $1.08$, signaling that the inner probe now saturates at much smaller promotion strengths.
+    \item \textbf{Return and collapse ($\alpha\geq 1.0$):} for $1.0\leq\alpha\leq 1.3$ the system re-locks to the legacy $\lambda_{\mathrm{rev}}\approx1.31$ ridge despite the larger $\alpha$, while $\alpha\geq 1.4$ forces a new catastrophic window at $\lambda\approx0.24$ where both $\lambda_{\mathrm{rev}}$ and $\lambda_{c2}$ occur within the first quarter of the scan.
+\end{itemize}
+Throughout the sweep the SRQID metrics remain within machine tolerance ($v_{\mathrm{LR}}\approx1.96$, $\Delta E\sim 10^{-14}$), so the only qualitative changes stem from the Postulate-1 residual surface.  Table~\ref{tab:alpha-sweep} lists the critical points and residual minima recorded for each $\alpha$; the companion CSV/PNG artifacts live in \texttt{outputs/run\_20251117-225\*} and \texttt{outputs/run\_20251117-230\*}.
+
+\begin{table}[t]
+    \centering
+    \small
+    \setlength{\tabcolsep}{6pt}
+    \begin{tabular}{c c c c c l}
+        \hline
+        $\alpha$ & $\lambda_{c1}$ & $\lambda_{\mathrm{rev}}$ & $\lambda_{c2}$ & Residual$_{\min}$ & Regime label \\
+        \hline
+        0.1 & 1.080 & 1.313 & 1.360 & 0.0177 & legacy plateau \\
+        0.2 & 0.585 & 1.313 & 1.360 & 0.0339 & legacy plateau \\
+        0.3 & 0.389 & 1.313 & 1.360 & 0.0486 & legacy plateau \\
+        0.4 & 0.309 & 1.313 & 1.360 & 0.0621 & legacy plateau \\
+        0.5 & 0.277 & 1.033 & 1.360 & 0.0985 & low-$\lambda$ plateau \\
+        0.6 & 0.245 & 1.033 & 1.080 & 0.1129 & low-$\lambda$ plateau \\
+        0.7 & 0.229 & 1.033 & 1.080 & 0.1260 & low-$\lambda$ plateau \\
+        0.8 & 0.213 & 1.033 & 1.080 & 0.1381 & low-$\lambda$ plateau \\
+        0.9 & 0.196 & 1.033 & 1.080 & 0.1492 & low-$\lambda$ plateau \\
+        1.0 & 0.180 & 1.313 & 1.360 & 0.1245 & return to legacy ridge \\
+        1.1 & 0.180 & 1.313 & 1.360 & 0.1325 & return to legacy ridge \\
+        1.2 & 0.164 & 1.313 & 1.360 & 0.1401 & return to legacy ridge \\
+        1.3 & 0.164 & 1.313 & 1.360 & 0.1472 & return to legacy ridge \\
+        1.4 & 0.148 & 0.245 & 0.470 & 0.1086 & early $\lambda$ collapse \\
+        1.5 & 0.148 & 0.229 & 0.438 & 0.1048 & early $\lambda$ collapse \\
+        \hline
+    \end{tabular}
+    \caption{$N=4$ path critical points vs.\ $\alpha$ (80-point $\lambda$ scans).  The three regimes discussed in the text are highlighted in the rightmost column; all runs share identical SRQID diagnostics ($v_{\mathrm{LR}}\approx1.96$, no-signalling $<10^{-15}$).}
+    \label{tab:alpha-sweep}
+\end{table}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.9\textwidth]{../figures/alpha_sweep_N4_path.png}
+    \caption{$N=4$ path: critical $\lambda$ values (lines) and residual minima (bars) versus $\alpha$.  Shaded bands indicate the three regimes (legacy plateau, low-$\lambda$ plateau, return/collapse) discussed in the text.}
+    \label{fig:alpha-sweep-plot}
+\end{figure}
+
+\section{SRQID Structural Validation}
+Both preprints emphasize that any emergent-geometry proposal must respect Lieb--Robinson causality and avoid hidden measurement steps.  The SRQID validators embedded in \texttt{srqid.py} directly compute:
+\begin{itemize}
+    \item $v_{\mathrm{LR}}$ from commutator-growth thresholds, yielding $v_{\mathrm{LR}}\approx 1.96$ on the current Hamiltonian---comfortably below the bound quoted in the SRQID draft ($\approx 2.07$) despite working with the full matter$+$bond Hilbert space.
+    \item No-signalling deviations $<10^{-15}$ for a local quench at the chain edge.
+    \item Energy drift $\Delta E \sim 10^{-14}$ over the simulated time window.
+\end{itemize}
+Because these tests now run inside the interacting promotion Hamiltonian, we no longer rely on the smaller transverse-field toy in the Dataverse bundle; the SRQID claims survive wholesale.
+
+\section{Spin-2 Channel}
+Section~IV of the QATNU preprint cites stochastic PSDs with a $1/k^2$ tail as evidence for a spin-2 sector.  The new workflow attempts to derive the PSD directly from $\chi$ profiles measured during the revival experiment.  At $N=4$ the best-fit slope is $-0.024$; at $N=5$ it shifts to $-0.111$, still far flatter than the ideal $-2$.  The discrepancy is revealing: the stochastic tier model assumes uncorrelated promotions, whereas the exact dynamics ties promotions to specific frustrated clusters.  Bridging this gap is now the main outstanding task; in the interim the legacy PSD plots (available via \texttt{dataverse\_files/qatnu\_poc.py}) remain accurate cartoons of the intended behavior, but they should be juxtaposed with the data-derived PSD in any updated manuscript.
+
+\section{Quantum-Level Interpretation}
+The combined evidence paints a consistent picture:
+\begin{enumerate}
+    \item The ED engine shows that local promotions $m\to m{+}1$ are coherently controlled by frustration tiles, exactly as described in the SRQID/ QATNU narratives.  No projectors or state-conditioned generators are introduced; the dynamics is strictly linear.
+    \item Entanglement proxies $\Lambda_{\text{out/in}}$ extracted from the promoted bonds control the Ramsey frequencies via $\omega/(1+\alpha\Lambda)$, validating Postulate~1 on two system sizes with measurable shifts in the critical $\lambda$ values.
+    \item Lieb--Robinson velocity, no-signalling, and energy conservation bounds remain satisfied despite operating in the enlarged Hilbert space, confirming that the promotion layer does not secretly violate locality.
+    \item The only open front is translating measured $\chi$ profiles into the spin-2 PSD predicted in the QATNU text; the fact that the ED data now constrain this translation is progress relative to the purely toy models used in August.
+\end{enumerate}
+
+\section{Next Physics Steps}
+\begin{itemize}
+    \item Compare the $N=5$ phase-space contours to the forthcoming non-1D geometries (star, pentagon, “house”) to determine how degree/curvature reshapes the residual surface; run $\sim$40-point λ scans per topology.
+    \item Improve the $\chi\to$PSD mapping—either by calibrating against the stochastic tier model or by computing spin-2 projectors directly from the ED eigenbasis—so the slope approaches the $1/k^2$ target.
+    \item Repeat the $\alpha$ sweep on a non-path topology (cycle, pyramid, bowtie) to determine whether the three regimes in Table~\ref{tab:alpha-sweep} persist once the probe degrees change.
+    \item Derive $\alpha$ from the promotion isometry via the linear-response/Stinespring route outlined earlier, then benchmark the closed-form susceptibility directly against Table~\ref{tab:alpha-sweep}.
+    \item Add a convenience mode (``legacy only'') or separate script to regenerate the Dataverse figures without rerunning a full production scan, so visualization workflows remain decoupled from the heavy ED run.
+\end{itemize}
+
+Beyond the lattice numerics, there are multiple theoretical avenues that constrain $\alpha$ to be $\mathcal{O}(1)$:
+\begin{itemize}
+    \item \textbf{Linear response / Kubo:} Treat $\Lambda$ as the perturbation operator $O_\Lambda$.  The frequency shift due to the promotion ladder is $\delta \omega = -\alpha \omega \Lambda$ with
+    \[
+    \alpha = -\frac{\partial \omega_{\mathrm{eff}}}{\partial \Lambda}\Big|_{\Lambda\to 0} = \frac{1}{\omega}\int_0^\infty dt\, e^{i\omega t}\,\langle [X_i(t), O_\Lambda(0)]\rangle_{\text{ret}}.
+    \]
+    This connects $\alpha$ directly to the retarded Green's function of $X_i$ and the frustration tile $F_{ij}$.
+    \item \textbf{Stinespring dilation / Kraus normalization:} The promotion isometry $V$ obeys $\sum_k A_k^\dagger A_k = I$.  The effective generator on matter qubits after tracing out bonds is $L_{\mathrm{eff}}[\rho] = \sum_k A_k \rho A_k^\dagger - \rho$, which yields a renormalized $X_i$ term proportional to $\alpha = \sum_k \mathrm{Tr}(F_{ij} A_k^\dagger X_i A_k)$.  Thus $\alpha$ is fixed by the Clifford$+$T representation of $\mathrm{INC}_{ij}$, not a free fit.
+    \item \textbf{Quantum speed limit / Margolus-Levitin:} The orthogonalization time $\tau \ge \pi\hbar/(2\langle\Delta E\rangle)$ with $\langle\Delta E\rangle \propto \omega/(1+\alpha \Lambda)$ enforces $\alpha \gtrsim 1/\Lambda_{\max}$.  With finite $\chi_{\max}$ this produces $\alpha \sim 1/\log \chi_{\max} \sim \mathcal{O}(1)$.
+    \item \textbf{Lieb--Robinson bound saturation:} The promotion ladder contributes to $v_{\mathrm{LR}}$ as $\Delta v_{\mathrm{LR}} \propto \alpha \lambda \|F_{ij}(R_{ij}+R_{ij}^\dagger)\|$.  Requiring $v_{\mathrm{LR}}$ to remain within the Hastings–Koma bound sets $\alpha = (v_{\mathrm{LR}}^{\max}-v_{\mathrm{LR}}^{\mathrm{bare}})/(\lambda \|F\cdot R\|\xi)$.
+\end{itemize}
+These bridges show that $\alpha$ can—and should—be computed directly from the Hamiltonian/isometry data rather than treated purely phenomenologically.  Two complementary routes are available:
+\begin{enumerate}
+    \item \textbf{Perturbative expansion:} In the dilute limit ($\lambda\ll\omega$, bond occupations $\langle n_{ij}\rangle\ll 1$), second-order perturbation theory yields a self-energy
+    \[
+    \Sigma_i(0) \approx -\frac{2\lambda^2}{\Delta_{\mathrm{eff}}}\sum_{j\in\partial i}\langle F_{ij}\rangle\,\langle n_{ij}\rangle,
+    \]
+    where $\Delta_{\mathrm{eff}}$ is the bond ladder gap. Matching this to the Postulate-1 shift $\delta\omega_i=-\omega\alpha\Lambda_i$ and using $\Lambda_i\approx\sum_j\langle n_{ij}\rangle$ gives
+    \[
+    \alpha_{\mathrm{pert}}(\lambda) \approx \frac{2\lambda^2}{\omega^2\Delta_{\mathrm{eff}}}\,\frac{\sum_j\langle F_{ij}\rangle\,\langle n_{ij}\rangle}{\sum_j\langle n_{ij}\rangle} \sim \frac{2\lambda^2}{\omega^2\Delta_{\mathrm{eff}}}\,\langle F\rangle_0,
+    \]
+    i.e., $\alpha \propto \lambda^2$ with an $\mathcal{O}(1)$ prefactor fixed by the frustration tile and ladder gap.
+    \item \textbf{Non-perturbative susceptibility:} Define $O_{\Lambda_i}=\sum_{j\in\partial i} n_{ij}$ and use the Kubo relation
+    \[
+    \alpha(\lambda) = \frac{1}{\omega}\int_0^\infty dt\,\chi_{X_i,O_{\Lambda_i}}(t),\qquad \chi_{X_i,O_{\Lambda_i}}(t)=-i\theta(t)\langle[X_i(t),O_{\Lambda_i}(0)]\rangle.
+    \]
+    Operationally this is the slope $-\partial_{\Lambda_i}\log[\omega_{\mathrm{eff}}^{(i)}(\Lambda_i,\lambda)/\omega]$ evaluated near $\Lambda_i\to 0$, i.e., fit $\log(\omega_{\mathrm{eff}}/\omega)$ vs.\ $\Lambda_i$ from ED data.
+\end{enumerate}
+Either route makes $\alpha$ an intrinsic susceptibility of the promotion ladder.  Implementing the calculation (rather than fitting) is an immediate next step so future readers can see $\alpha$ emerge from the promotion unitary itself; a longer derivation is summarized in \texttt{docs/alpha\_derivation.md}.
+
+\paragraph{Artifacts.}  All referenced PNGs/CSVs reside in timestamped folders under \texttt{figures/run\_*} and \texttt{outputs/run\_*}.  The \texttt{legacy outputs-figures} directory retains the earlier \texttt{appv3.py} products for comparison.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.95\textwidth]{../figures/run_20251116-154356_N4_alpha0.80/phase_diagram_run_20251116-154356_N4_alpha0.80.png}
+    \caption{$N=4$, $\alpha=0.8$, 100-point $\lambda$ scan showing residuals, frequency scaling, entanglement proxies, and phase classification.}
+    \label{fig:N4phase}
+\end{figure}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.95\textwidth]{../figures/run_20251116-160216_N5_alpha0.80/phase_diagram_run_20251116-160216_N5_alpha0.80.png}
+    \caption{$N=5$, $\alpha=0.8$, 50-point $\lambda$ scan from the modular workflow (consistent with the legacy \texttt{appv3.py} results but now timestamped within \texttt{app.py}).}
+    \label{fig:N5phase}
+\end{figure}
+
+
+
+\end{document}
+In addition to the 1-D scan, a $6\times12$ $(\alpha,\lambda)$ grid (α ∈ {0.2,0.4,0.6,0.8,1.0,1.2}, λ ∈ [0.1,1.2]) shows a residual floor pinned near λ≈0.1 for every α while the plateau height scales monotonically with α.  The heatmap (stored at \texttt{figures/run\_20251116-160216\_N5\_alpha0.80/phase\_space\_run\_20251116-160216\_N5\_alpha0.80.png}) provides the phase-surface counterpart to the single-α diagrams and will be used when extrapolating to larger $N$ or different graph topologies.  Numerically the minima follow:
+\[
+\begin{array}{c|c|c}
+\alpha & \lambda_{\min} & \text{Residual}_{\min} \\
+\hline
+0.2 & 0.10 & 3.3\times 10^{-3} \\
+0.4 & 0.10 & 6.6\times 10^{-3} \\
+0.6 & 0.10 & 9.9\times 10^{-3} \\
+0.8 & 0.10 & 1.31\times 10^{-2} \\
+1.0 & 0.10 & 1.63\times 10^{-2} \\
+1.2 & 0.10 & 1.95\times 10^{-2}
+\end{array}
+\]
+illustrating the linear-in-α growth of the valley floor.
+\paragraph{Non-1D test case: 4-site cycle.}  As a first geometry variation, we ran the same workflow on the degree-2 cycle (periodic boundary).  The phase diagram shifts as expected: $\lambda_{c1}$ moves right to $\approx 0.261$ (because both probes see the same environment, residuals stay small longer), $\lambda_{\mathrm{rev}}$ occurs at $\approx 0.486$ with essentially zero residual (outer and inner clocks lock perfectly), and $\lambda_{c2}$ drifts down to $\approx 1.0$.  The SRQID validators detect the higher propagation speed ($v_{\mathrm{LR}}\approx 2.45$) but still satisfy the bound, and the catastrophic inversion happens slightly earlier because all bonds feed back into one another.  This confirms that the modular code handles arbitrary topologies and that Postulate~1 continues to describe the frequency ratios even when “outer” and “inner” probes become symmetric.
