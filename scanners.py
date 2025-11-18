@@ -19,12 +19,21 @@ class ParameterScanner:
 
     @staticmethod
     def run_single_point(
-        args: Tuple[int, float, float, float, int, Tuple[Tuple[int, int], ...], Tuple[int, int]]
+        args: Tuple[
+            int,
+            float,
+            float,
+            float,
+            int,
+            Tuple[Tuple[int, int], ...],
+            Tuple[int, int],
+            bool,
+        ]
     ) -> Dict:
         import sys
         from copy import deepcopy
 
-        N, alpha, lambda_param, tMax, bond_cutoff, edges, probes = args
+        N, alpha, lambda_param, tMax, bond_cutoff, edges, probes, embedded_clocks = args
 
         print(
             f"🔄 Worker {os.getpid()} starting: N={N}, λ={lambda_param:.3f}",
@@ -58,10 +67,11 @@ class ParameterScanner:
         t_grid = np.linspace(0, tMax, 80)
 
         probe_sites = list(probes)
+        source_state = frustrated_state if embedded_clocks else ground_state
         measured_freqs: List[float] = []
 
         for site in probe_sites:
-            psi = qca.apply_pi2_pulse(ground_state, site)
+            psi = qca.apply_pi2_pulse(source_state.copy(), site)
             Z_signal = []
 
             for t in t_grid:
@@ -114,6 +124,7 @@ class ParameterScanner:
         run_tag: Optional[str] = None,
         edges: Optional[List[Tuple[int, int]]] = None,
         probes: Optional[Tuple[int, int]] = None,
+        embedded_clocks: bool = False,
     ) -> pd.DataFrame:
         print(f"\n🔬 Parallel λ scan: N={N}, α={alpha}, points={num_points}")
         print(f"Using {os.cpu_count()} cores")
@@ -136,7 +147,8 @@ class ParameterScanner:
         )
 
         args_list = [
-            (N, alpha, l, 20.0, bond_cutoff, edges_tuple, probes) for l in lambda_vals
+            (N, alpha, l, 20.0, bond_cutoff, edges_tuple, probes, embedded_clocks)
+            for l in lambda_vals
         ]
 
         results = []
@@ -171,6 +183,7 @@ class ParameterScanner:
         run_tag: Optional[str] = None,
         edges: Optional[List[Tuple[int, int]]] = None,
         probes: Optional[Tuple[int, int]] = None,
+        embedded_clocks: bool = False,
     ) -> pd.DataFrame:
         if lambda_vals is None:
             lambda_vals = np.linspace(0.1, 1.2, 12)
@@ -185,7 +198,9 @@ class ParameterScanner:
         print(f"\n🗺️ 2D phase space: {len(lambda_vals)}×{len(alpha_vals)}={len(lambda_vals)*len(alpha_vals)} points")
 
         args_list = [
-            (N, a, l, 15.0, bond_cutoff, edges_tuple, probes) for a in alpha_vals for l in lambda_vals
+            (N, a, l, 15.0, bond_cutoff, edges_tuple, probes, embedded_clocks)
+            for a in alpha_vals
+            for l in lambda_vals
         ]
 
         results = []

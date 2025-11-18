@@ -49,6 +49,8 @@ The central prediction of the QATNU manuscript is the entanglement-induced slow-
 \]
 with $\Lambda$ the logarithmic entanglement proxy defined in the SRQID Hamiltonian.  Thus each residual point in the phase diagram is testing whether the QATNU circuit picture (frequency suppression by coherent promotions) matches the SRQID Hamiltonian’s entanglement bookkeeping.  The current simulator exposes this relationship directly by measuring $\Lambda_{\text{out/in}}$ from the promoted bonds and comparing the two sides of the equation above.
 
+\paragraph{Clock protocols.} Two excitation protocols clarify the domain of validity.  \textbf{Protocol~A} (default) prepares the Ramsey probes via $\pi/2$ pulses on the clean ground state and evolves them under $H(\lambda)$, while $\Lambda_{\text{out/in}}$ is still extracted from the frustrated background.  This mirrors GR’s “metric from source + test clocks” construction and yields the low-residual wedges shown here.  \textbf{Protocol~B} (“embedded clocks”) instead applies the $\pi/2$ pulses directly to the frustrated state; the resulting $Z(t)$ signals contain many modes and produce $\sim$60–90\% residuals everywhere, as expected once the probe ceases to be a weak perturbation.  The CLI flag \texttt{--embedded-clocks} enables Protocol~B explicitly; all figures in this report use Protocol~A unless noted otherwise.
+
 \subsection{$N=4$ benchmark (run\_20251116-154356)}
 Figure~\ref{fig:N4phase} reproduces the six-panel layout envisioned in the QATNU preprint.  Quantitatively we find
 \[

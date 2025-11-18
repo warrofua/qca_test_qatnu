@@ -87,6 +87,7 @@ def production_run(
     edges: Optional[List[Tuple[int, int]]] = None,
     probes: Tuple[int, int] = (0, 1),
     graph_name: str = "path",
+    embedded_clocks: bool = False,
 ) -> Dict:
     if edges is None:
         edges = [(i, i + 1) for i in range(max(N - 1, 0))]
@@ -112,6 +113,7 @@ def production_run(
         run_tag=run_tag,
         edges=edges,
         probes=probes,
+        embedded_clocks=embedded_clocks,
     )
 
     analyzer = PhaseAnalyzer()
@@ -199,6 +201,7 @@ def production_run(
             run_tag=run_tag,
             edges=edges,
             probes=probes,
+            embedded_clocks=embedded_clocks,
         )
         heatmap_path = os.path.join(dirs["figures"], f"phase_space_{run_tag}.png")
         _plot_phase_space_heatmap(df_2d, heatmap_path)
@@ -279,6 +282,11 @@ def parse_args() -> argparse.Namespace:
         metavar=("OUTER", "INNER"),
         help="Override probe vertex indices (outer, inner).",
     )
+    parser.add_argument(
+        "--embedded-clocks",
+        action="store_true",
+        help="Use π/2 pulses on the frustrated background (Protocol B) instead of the ground-state probes.",
+    )
     return parser.parse_args()
 
 
@@ -307,6 +315,7 @@ def main():
         edges=topology.edges,
         probes=probes,
         graph_name=topology.name,
+        embedded_clocks=args.embedded_clocks,
     )
     if args.legacy_viz:
         run_legacy_visuals()
