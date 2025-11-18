@@ -1,4 +1,4 @@
-# QATNU / SRQID Unified Simulation Framework
+# QATNU / SRQID Simulation Framework
 
 This repository houses the `app.py` workflow that unifies the exact QCA diagonalization, λ scans, SRQID structural tests, mean-field overlays, and spin-2 diagnostics used in the recent QATNU/SRQID studies.
 
