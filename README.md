@@ -75,5 +75,17 @@ outputs/              # CSVs & summary logs (timestamped subfolders)
 
 To regenerate a figure mentioned in the docs, rerun `app.py` with the appropriate flags; the CLI prints the run tag plus the saved artifact paths. For snapshots of recent runs (including embedded figures), read [docs/results.md](docs/results.md).
 
+## Engine architecture & capabilities
+- **Dynamic geometry & gauge promotion:** The exact Hamiltonian couples matter qubits to finite-dimensional bond registers on edges via $H_{int}$ so the bond dimension $\chi$ can occupy superposition states (e.g., $|1\rangle + |2\rangle$). Frustration tiles $F_{ij}$ trigger promotions/demotions that let the lattice geometry rewrite itself in response to the state, matching the “gauge promotion” narrative of SRQID/QATNU.
+- **Absolute unitary integrity:** Time evolution uses full spectral decomposition ($U(t)=e^{-iHt}$ via `scipy.linalg.eigh`), guaranteeing $U^\dagger U=I$ to machine precision ($\sim 10^{-15}$). There is no integration drift or stochastic noise, which is crucial for validating SRQID’s information-theoretic claims.
+- **Bespoke observable extraction:** The code includes custom observables beyond standard spin-chain tooling: the circuit-depth proxy $\Lambda$ (local bond complexity), Lieb–Robinson velocity from commutator growth, and automatic no-signalling / energy-drift checks that run inside the exact Hamiltonian.
+- **Hardware-aware parallelism:** `ParameterScanner` detects Apple Silicon/Accelerate stacks, sets `VECLIB_MAXIMUM_THREADS`, and enforces the `forkserver` multiprocessing start method so λ sweeps saturate local cores without manual tuning. Everything runs on consumer hardware—no cluster scheduler required.
+
+## Current technical constraints & limitations
+- **Exponential Hilbert scaling:** Because each edge carries an active bond register, the Hilbert space grows as $2^N \times \chi_{\max}^{|E|}$. Exact diagonalization is practical up to roughly $N\approx 5$ (depending on topology/bond cutoff); larger systems would need tensor-network or Krylov reductions.
+- **Dense-matrix bottleneck:** Full `eigh` has $O(D^3)$ complexity in the total Hilbert dimension $D$. This is a deliberate trade-off for unitarity and reproducibility; runtime scales steeply with both $N$ and bond cutoff.
+- **Bond-dimension truncation:** Runs must specify a fixed `bond_cutoff` ($\chi_{\max}$). This acts as a curvature ceiling—if the dynamics would populate higher tiers, they get truncated, which can set artificial bounds in high-energy regimes.
+- **Topological rigidity (current release):** The index-mapping logic is tailored to 1D-like graphs (paths, cycles, bowties, stars). Extending to full 2D/3D lattices would require reworking the basis indexing and neighbor tables.
+
 ## Ancillary Dataverse scripts
 The `dataverse_files/` folder contains the original toy-model numerics (Ising SRQID checks, Hadamard light-cone, stochastic spin-2 PSD, etc.). They are preserved for reference but are not part of the main workflow. You can run them via the included `Makefile` inside that folder if you need the legacy comparison plots.
