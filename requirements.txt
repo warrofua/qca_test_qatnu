@@ -1,7 +1,14 @@
-numpy
-scipy
-matplotlib
-seaborn
-pandas
-plotly
-tqdm
+# Core numerical computing
+numpy>=1.24,<3.0        # Linear algebra, FFT, spectral decomposition
+scipy>=1.11,<2.0        # Eigensolvers (eigh), signal processing, peak detection
+
+# Visualization
+matplotlib>=3.7,<4.0    # Primary plotting backend for phase diagrams
+seaborn>=0.12,<1.0      # Statistical visualizations (2D heatmaps)
+plotly>=5.14,<7.0       # Interactive plots (legacy visualization support)
+
+# Data handling
+pandas>=2.0,<3.0        # DataFrame operations for parameter scans and CSV export
+
+# Progress monitoring
+tqdm>=4.65,<5.0         # Progress bars for parallel λ scans

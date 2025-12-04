@@ -1,10 +1,70 @@
-docs/status_202511.aux
-docs/status_202511.log
-docs/status_202511.out
-docs/status_202511.pdf
-docs/status_202511.synctex.gz
-.DS_Store
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
 venv/
-__pycache__
-.cache
-.matplotlib_cache
+env/
+ENV/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+
+# OS-specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+
+# Application caches
+.cache/
+.matplotlib_cache/
+.pytest_cache/
+
+# TeX build artifacts
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.pdf
+docs/*.synctex.gz
+docs/*.toc
+docs/*.bbl
+docs/*.blg
+*.aux
+*.log
+*.out
+*.synctex.gz
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# MyPy type checker
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Environment variables (if you use .env files)
+.env
+.env.local
