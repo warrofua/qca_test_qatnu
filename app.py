@@ -11,12 +11,9 @@ from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
-from pathlib import Path
 
 from core_qca import ExactQCA
 from geometry import EmergentGeometryAnalyzer
-from phase_analysis import PhaseAnalyzer
 from runtime_config import configure_runtime, detect_accelerate
 from scanners import ParameterScanner
 from srqid import SRQIDValidators
@@ -87,7 +84,8 @@ def production_run(
     edges: Optional[List[Tuple[int, int]]] = None,
     probes: Tuple[int, int] = (0, 1),
     graph_name: str = "path",
-    embedded_clocks: bool = False,
+    lambda_min: float = 0.1,
+    lambda_max: float = 1.5,
 ) -> Dict:
     if edges is None:
         edges = [(i, i + 1) for i in range(max(N - 1, 0))]
@@ -108,14 +106,17 @@ def production_run(
     df = scanner.scan_lambda_parallel(
         N=N,
         alpha=alpha,
+        lambda_min=lambda_min,
+        lambda_max=lambda_max,
         num_points=num_points,
         output_dir=dirs["outputs"],
         run_tag=run_tag,
         edges=edges,
         probes=probes,
-        embedded_clocks=embedded_clocks,
     )
 
+    from phase_analysis import PhaseAnalyzer
+    
     analyzer = PhaseAnalyzer()
     phase_path = os.path.join(dirs["figures"], f"phase_diagram_{run_tag}.png")
     fig, crit = analyzer.plot_phase_diagram(df, N=N, alpha=alpha, save_path=phase_path)
@@ -201,7 +202,6 @@ def production_run(
             run_tag=run_tag,
             edges=edges,
             probes=probes,
-            embedded_clocks=embedded_clocks,
         )
         heatmap_path = os.path.join(dirs["figures"], f"phase_space_{run_tag}.png")
         _plot_phase_space_heatmap(df_2d, heatmap_path)
@@ -217,6 +217,8 @@ def production_run(
 
 
 def _plot_phase_space_heatmap(df: pd.DataFrame, save_path: str) -> None:
+    import seaborn as sns
+
     pivot = df.pivot(index="lambda", columns="alpha", values="residual") * 100
     plt.figure(figsize=(12, 8))
     sns.heatmap(
@@ -283,9 +285,16 @@ def parse_args() -> argparse.Namespace:
         help="Override probe vertex indices (outer, inner).",
     )
     parser.add_argument(
-        "--embedded-clocks",
-        action="store_true",
-        help="Use π/2 pulses on the frustrated background (Protocol B) instead of the ground-state probes.",
+        "--lambda-min",
+        type=float,
+        default=0.1,
+        help="Minimum λ for the 1D scan",
+    )
+    parser.add_argument(
+        "--lambda-max",
+        type=float,
+        default=1.5,
+        help="Maximum λ for the 1D scan",
     )
     return parser.parse_args()
 
@@ -315,7 +324,8 @@ def main():
         edges=topology.edges,
         probes=probes,
         graph_name=topology.name,
-        embedded_clocks=args.embedded_clocks,
+        lambda_min=args.lambda_min,
+        lambda_max=args.lambda_max,
     )
     if args.legacy_viz:
         run_legacy_visuals()

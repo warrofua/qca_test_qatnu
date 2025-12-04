@@ -15,7 +15,7 @@ import numpy as np
 def configure_runtime() -> None:
     """Configure BLAS backend for optimal Apple Silicon performance."""
     if platform.system() == "Darwin" and "arm" in platform.machine():
-        os.environ["VECLIB_MAXIMUM_THREADS"] = str(os.cpu_count())
+        os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
         os.environ["OPENBLAS_NUM_THREADS"] = "1"
         os.environ["MKL_NUM_THREADS"] = "1"
     else:

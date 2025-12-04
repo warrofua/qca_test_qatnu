@@ -84,10 +84,9 @@ class ExactQCA:
         for power in self.bond_powers:
             config.append(remaining // power)
             remaining %= power
-        result = config[::-1]
         if self.edge_count == 0:
             return []
-        return result
+        return config
 
     def state_index(self, matter_state: int, bond_config: List[int]) -> int:
         if self.edge_count == 0:
@@ -195,7 +194,7 @@ class ExactQCA:
 
     def measure_Z(self, state: np.ndarray, site: int) -> float:
         probabilities = np.abs(state) ** 2
-        Z_full = np.tile(self.Z_lookup[:, site], self.bond_dim)
+        Z_full = np.repeat(self.Z_lookup[:, site], self.bond_dim)
         return float(np.sum(Z_full * probabilities))
 
     def get_bond_dimension(self, edge: int, state: np.ndarray) -> float:

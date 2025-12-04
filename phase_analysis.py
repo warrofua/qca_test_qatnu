@@ -46,7 +46,7 @@ class PhaseAnalyzer:
             lambda_revival = residual_min = None
 
         try:
-            if lambda_revival:
+            if lambda_revival is not None:
                 post_revival = df[df["lambda"] > lambda_revival]
                 lambda_c2 = post_revival[post_revival["residual"] > 0.20]["lambda"].iloc[0]
             else:
@@ -81,9 +81,9 @@ class PhaseAnalyzer:
         ax1.fill_between(df["lambda"], 5, 50, alpha=0.15, color="yellow", label="Breakdown (Phase II)")
         ax1.fill_between(df["lambda"], 50, 150, alpha=0.15, color="red", label="Catastrophic (Phase IV)")
 
-        if crit["lambda_c1"]:
+        if crit["lambda_c1"] is not None:
             ax1.axvline(crit["lambda_c1"], color="black", linestyle="-", linewidth=1.5, alpha=0.7, label=f"λ_c1={crit['lambda_c1']:.3f}")
-        if crit["lambda_revival"]:
+        if crit["lambda_revival"] is not None and crit["residual_min"] is not None:
             ax1.axvline(crit["lambda_revival"], color="purple", linestyle=":", linewidth=2, label=f"Revival (λ={crit['lambda_revival']:.3f})")
             ax1.annotate(
                 f"Quantum Revival\nλ={crit['lambda_revival']:.3f}\nR={crit['residual_min']*100:.2f}%",
@@ -95,7 +95,7 @@ class PhaseAnalyzer:
                 color="purple",
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8),
             )
-        if crit["lambda_c2"]:
+        if crit["lambda_c2"] is not None:
             ax1.axvline(crit["lambda_c2"], color="gray", linestyle="-", linewidth=1.5, alpha=0.7, label=f"λ_c2={crit['lambda_c2']:.3f}")
 
         ax1.set_xlabel("λ (promotion strength)", fontsize=14, fontweight="bold")
@@ -112,7 +112,7 @@ class PhaseAnalyzer:
         ax2.plot(df["lambda"], df["predicted_omega_out"], "--", alpha=0.6, color="steelblue", label="Predicted ω_out")
         ax2.plot(df["lambda"], df["predicted_omega_in"], "--", alpha=0.6, color="coral", label="Predicted ω_in")
         ax2.axhline(1.0, color="black", linestyle=":", linewidth=1.5, alpha=0.7, label="Bare ω")
-        if crit["lambda_revival"]:
+        if crit["lambda_revival"] is not None:
             ax2.axvline(crit["lambda_revival"], color="purple", linestyle=":", linewidth=1.5, alpha=0.5)
         ax2.set_xlabel("λ", fontsize=12, fontweight="bold")
         ax2.set_ylabel("ω_eff", fontsize=12, fontweight="bold")
@@ -136,7 +136,7 @@ class PhaseAnalyzer:
         ax4 = fig.add_subplot(gs[1, 2])
         ax4.plot(df["lambda"], df["lambda_out"], "o-", label="Λ_out", linewidth=2, color="steelblue")
         ax4.plot(df["lambda"], df["lambda_in"], "s-", label="Λ_in", linewidth=2, color="coral")
-        if crit["lambda_revival"]:
+        if crit["lambda_revival"] is not None:
             ax4.axvline(crit["lambda_revival"], color="purple", linestyle=":", linewidth=1.5, alpha=0.5)
         ax4.set_xlabel("λ", fontsize=12, fontweight="bold")
         ax4.set_ylabel("Λ (circuit depth)", fontsize=12, fontweight="bold")
@@ -150,7 +150,7 @@ class PhaseAnalyzer:
         ax5.plot(df["lambda"], measured_ratio, "o-", label="Measured Ratio", linewidth=2, markersize=6, color="darkgreen")
         ax5.plot(df["lambda"], predicted_ratio, "s-", label="Predicted Ratio", linewidth=2, markersize=6, color="orange")
         ax5.axhline(1.0, color="black", linestyle=":", linewidth=1.5, alpha=0.7, label="No scaling")
-        if crit["lambda_revival"]:
+        if crit["lambda_revival"] is not None:
             ax5.axvline(crit["lambda_revival"], color="purple", linestyle=":", linewidth=1.5, alpha=0.5)
         ax5.set_xlabel("λ", fontsize=12, fontweight="bold")
         ax5.set_ylabel("ω_in / ω_out", fontsize=12, fontweight="bold")
@@ -178,10 +178,10 @@ class PhaseAnalyzer:
         cbar = plt.colorbar(scatter, ax=ax6, orientation="horizontal", pad=0.25, ticks=[0, 1, 2])
         cbar.ax.set_xticklabels(["✓ Emergent", "~ Within Tol.", "✗ Violated"], fontsize=10)
 
-        lambda_c1_str = f"{crit['lambda_c1']:.3f}" if crit["lambda_c1"] else "N/A"
-        lambda_revival_str = f"{crit['lambda_revival']:.3f}" if crit["lambda_revival"] else "N/A"
-        residual_min_str = f"{crit['residual_min']*100:.2f}" if crit["residual_min"] else "N/A"
-        lambda_c2_str = f"{crit['lambda_c2']:.3f}" if crit["lambda_c2"] else "N/A"
+        lambda_c1_str = f"{crit['lambda_c1']:.3f}" if crit["lambda_c1"] is not None else "N/A"
+        lambda_revival_str = f"{crit['lambda_revival']:.3f}" if crit["lambda_revival"] is not None else "N/A"
+        residual_min_str = f"{crit['residual_min']*100:.2f}" if crit["residual_min"] is not None else "N/A"
+        lambda_c2_str = f"{crit['lambda_c2']:.3f}" if crit["lambda_c2"] is not None else "N/A"
 
         summary_text = f"""
         Critical Points:

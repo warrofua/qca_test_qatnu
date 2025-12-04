@@ -1,3 +1,4 @@
+
 \documentclass[12pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -193,9 +194,16 @@ Either route makes $\alpha$ an intrinsic susceptibility of the promotion ladder.
 \end{figure}
 
 
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.95\textwidth]{../figures/run_20251116-160216_N5_alpha0.80/phase_diagram_run_20251116-160216_N5_alpha0.80.png}
+    \caption{$N=5$, $\alpha=0.8$, 50-point $\lambda$ scan from the modular workflow (consistent with the legacy \texttt{appv3.py} results but now timestamped within \texttt{app.py}).}
+    \label{fig:N5phase}
+\end{figure}
 
-\end{document}
-In addition to the 1-D scan, a $6\times12$ $(\alpha,\lambda)$ grid (α ∈ {0.2,0.4,0.6,0.8,1.0,1.2}, λ ∈ [0.1,1.2]) shows a residual floor pinned near λ≈0.1 for every α while the plateau height scales monotonically with α.  The heatmap (stored at \texttt{figures/run\_20251116-160216\_N5\_alpha0.80/phase\_space\_run\_20251116-160216\_N5\_alpha0.80.png}) provides the phase-surface counterpart to the single-α diagrams and will be used when extrapolating to larger $N$ or different graph topologies.  Numerically the minima follow:
+\subsection*{Phase-Space Scan and Non-1D Topology Check}
+
+In addition to the 1-D scan, a $6\times 12$ $(\alpha,\lambda)$ grid ($\alpha \in \{0.2,0.4,0.6,0.8,1.0,1.2\}$, $\lambda \in [0.1,1.2]$) shows a residual floor pinned near $\lambda \approx 0.1$ for every $\alpha$ while the plateau height scales monotonically with $\alpha$. The heatmap (stored at \texttt{figures/run\_20251116-160216\_N5\_alpha0.80/phase\_space\_run\_20251116-160216\_N5\_alpha0.80.png}) provides the phase-surface counterpart to the single-$\alpha$ diagrams and will be used when extrapolating to larger $N$ or different graph topologies. Numerically the minima follow:
 \[
 \begin{array}{c|c|c}
 \alpha & \lambda_{\min} & \text{Residual}_{\min} \\
@@ -208,5 +216,9 @@ In addition to the 1-D scan, a $6\times12$ $(\alpha,\lambda)$ grid (α ∈ {0.2,
 1.2 & 0.10 & 1.95\times 10^{-2}
 \end{array}
 \]
-illustrating the linear-in-α growth of the valley floor.
-\paragraph{Non-1D test case: 4-site cycle.}  As a first geometry variation, we ran the same workflow on the degree-2 cycle (periodic boundary).  The phase diagram shifts as expected: $\lambda_{c1}$ moves right to $\approx 0.261$ (because both probes see the same environment, residuals stay small longer), $\lambda_{\mathrm{rev}}$ occurs at $\approx 0.486$ with essentially zero residual (outer and inner clocks lock perfectly), and $\lambda_{c2}$ drifts down to $\approx 1.0$.  The SRQID validators detect the higher propagation speed ($v_{\mathrm{LR}}\approx 2.45$) but still satisfy the bound, and the catastrophic inversion happens slightly earlier because all bonds feed back into one another.  This confirms that the modular code handles arbitrary topologies and that Postulate~1 continues to describe the frequency ratios even when “outer” and “inner” probes become symmetric.
+illustrating the linear-in-$\alpha$ growth of the valley floor.
+
+\paragraph{Non-1D test case: 4-site cycle.}
+As a first geometry variation, we ran the same workflow on the degree-2 cycle (periodic boundary). The phase diagram shifts as expected: $\lambda_{c1}$ moves right to $\approx 0.261$ (because both probes see the same environment, residuals stay small longer), $\lambda_{\mathrm{rev}}$ occurs at $\approx 0.486$ with essentially zero residual (outer and inner clocks lock perfectly), and $\lambda_{c2}$ drifts down to $\approx 1.0$. The SRQID validators detect the higher propagation speed ($v_{\mathrm{LR}}\approx 2.45$) but still satisfy the bound, and the catastrophic inversion happens slightly earlier because all bonds feed back into one another. This confirms that the modular code handles arbitrary topologies and that Postulate~1 continues to describe the frequency ratios even when “outer” and “inner” probes become symmetric.
+
+\end{document}
