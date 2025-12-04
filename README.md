@@ -4,9 +4,9 @@ This repository houses the `app.py` workflow that unifies the exact QCA diagonal
 
 ## Physics overview (why this exists)
 The simulator implements the August 2025 QATNU/SRQID construction in which a measurement-free promotion ladder renormalizes local clock rates according to Postulate 1,
-\[
+$$
 \omega_{\mathrm{eff}}^{(i)} = \frac{\omega}{1+\alpha \Lambda_i},
-\]
+$$
 with $\Lambda_i$ extracted from the logarithmic bond-depth profile of the SRQID Hamiltonian.  Each production run follows the “GR-style” workflow documented in `docs/status_202511.tex`:
 
 1. **Geometry from source:** build the exact many-body Hamiltonian on the requested graph, evolve its ground state under a hotspot (3λ) promotion, and measure $\Lambda_{\text{out/in}}$ from that frustrated background.
