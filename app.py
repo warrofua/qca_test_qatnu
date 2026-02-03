@@ -21,9 +21,45 @@ from tester import QCATester, plot_ramsey_overlay
 from topologies import get_topology
 
 
-def _timestamped_dirs(N: int, alpha: float, graph: str) -> Dict[str, str]:
+def _timestamped_dirs(
+    N: int,
+    alpha: float,
+    graph: str,
+    bond_cutoff: int = 4,
+    lambda_min: float = 0.1,
+    lambda_max: float = 1.5,
+    num_points: int = 100,
+    **extra_kwargs
+) -> Dict[str, str]:
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    
+    # Build base run tag
     run_tag = f"run_{ts}_N{N}_{graph}_alpha{alpha:.2f}"
+    
+    # Add non-default parameters to tag for tracking
+    extras = []
+    if bond_cutoff != 4:
+        extras.append(f"chi{bond_cutoff}")
+    if abs(lambda_min - 0.1) > 1e-6 or abs(lambda_max - 1.5) > 1e-6:
+        extras.append(f"lam{lambda_min:.2f}-{lambda_max:.2f}")
+    if num_points != 100:
+        extras.append(f"pts{num_points}")
+    
+    # Add any extra kwargs that were passed
+    for key, value in extra_kwargs.items():
+        if value is not None and key not in ('edges', 'probes', 'run_phase_space'):
+            # Clean up key name (remove underscores, limit length)
+            clean_key = key.replace('_', '')[:4]
+            if isinstance(value, float):
+                extras.append(f"{clean_key}{value:.2f}")
+            elif isinstance(value, int):
+                extras.append(f"{clean_key}{value}")
+            elif isinstance(value, str) and len(value) <= 4:
+                extras.append(f"{clean_key}{value}")
+    
+    if extras:
+        run_tag += "_" + "_".join(extras)
+    
     output_dir = os.path.join("outputs", run_tag)
     fig_dir = os.path.join("figures", run_tag)
     os.makedirs(output_dir, exist_ok=True)
@@ -39,7 +75,7 @@ def _choose_lambda_focus(crit: Dict, default: float) -> float:
 
 
 def _write_summary(summary_path: str, context: Dict) -> None:
-    with open(summary_path, "w") as f:
+    with open(summary_path, "w", encoding="utf-8") as f:
         f.write("QATNU/SRQID Production Run Summary\n")
         f.write("=" * 60 + "\n")
         f.write(f"Timestamp: {context['timestamp']}\n")
@@ -86,10 +122,17 @@ def production_run(
     graph_name: str = "path",
     lambda_min: float = 0.1,
     lambda_max: float = 1.5,
+    bond_cutoff: int = 4,
 ) -> Dict:
     if edges is None:
         edges = [(i, i + 1) for i in range(max(N - 1, 0))]
-    dirs = _timestamped_dirs(N, alpha, graph_name)
+    dirs = _timestamped_dirs(
+        N, alpha, graph_name,
+        bond_cutoff=bond_cutoff,
+        lambda_min=lambda_min,
+        lambda_max=lambda_max,
+        num_points=num_points
+    )
     timestamp = dirs["timestamp"]
     run_tag = dirs["tag"]
 
@@ -109,6 +152,7 @@ def production_run(
         lambda_min=lambda_min,
         lambda_max=lambda_max,
         num_points=num_points,
+        bond_cutoff=bond_cutoff,
         output_dir=dirs["outputs"],
         run_tag=run_tag,
         edges=edges,
@@ -148,7 +192,7 @@ def production_run(
     ns_violation = SRQIDValidators.no_signalling_quench(qca_val)
     energy_err = SRQIDValidators.energy_drift(qca_val)
 
-    tester = QCATester(N=N, alpha=alpha, edges=edges, probes=probes)
+    tester = QCATester(N=N, alpha=alpha, bond_cutoff=bond_cutoff, edges=edges, probes=probes)
     lambda_focus = _choose_lambda_focus(crit, default=df["lambda"].iloc[len(df) // 2])
     tester_config = tester.parameters.copy()
     tester_config["lambda"] = lambda_focus
@@ -198,6 +242,7 @@ def production_run(
     if run_phase_space:
         df_2d = scanner.scan_2d_phase_space(
             N=N,
+            bond_cutoff=bond_cutoff,
             output_dir=dirs["outputs"],
             run_tag=run_tag,
             edges=edges,
@@ -296,6 +341,12 @@ def parse_args() -> argparse.Namespace:
         default=1.5,
         help="Maximum λ for the 1D scan",
     )
+    parser.add_argument(
+        "--bond-cutoff",
+        type=int,
+        default=4,
+        help="Maximum bond dimension (χ_max). Default 4. Increase for high-λ catastrophe physics, decrease for larger N.",
+    )
     return parser.parse_args()
 
 
@@ -326,6 +377,7 @@ def main():
         graph_name=topology.name,
         lambda_min=args.lambda_min,
         lambda_max=args.lambda_max,
+        bond_cutoff=args.bond_cutoff,
     )
     if args.legacy_viz:
         run_legacy_visuals()

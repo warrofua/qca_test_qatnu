@@ -89,6 +89,13 @@ python app.py --N 4 --alpha 0.8 --points 100 --phase-space
   - Example: `--probes 0 3` uses vertices 0 and 3
   - Defaults: path/cycle→(0,1), diamond→(0,2), others→(0,1)
 
+**Bond dimension (advanced):**
+- `--bond-cutoff` : Maximum bond dimension χ_max (default: 4)
+  - Controls the ladder depth for bond registers; acts as UV cutoff
+  - Higher values: better high-λ catastrophe physics, larger Hilbert space
+  - Lower values: enable larger N (e.g., N=6 needs bond-cutoff ≤3)
+  - N=4 can handle up to ~12; N=5 up to ~6; N=6 up to ~3 (with 32GB RAM)
+
 **Additional outputs:**
 - `--legacy-viz` : Also run the Dataverse legacy visualization scripts (`qatnu_poc.py`)
   - Generates light-cone, dispersion, and MERA figures for comparison
@@ -125,9 +132,30 @@ python app.py --N 5 --alpha 0.8 --points 40
 python app.py --N 4 --graph diamond --probes 0 2 --alpha 0.8
 ```
 
+**High bond-cutoff for catastrophe regime (N=4, χ_max=12):**
+```bash
+python app.py --N 4 --alpha 0.8 --points 100 --bond-cutoff 12
+```
+
+**N=6 with reduced bond-cutoff (feasibility test):**
+```bash
+python app.py --N 6 --alpha 0.8 --points 30 --bond-cutoff 3
+```
+
 ### Output structure
 
-Each run creates timestamped directories with the naming pattern `run_YYYYMMDD-HHMMSS_N{N}_{graph}_alpha{α}`:
+Each run creates timestamped directories with the naming pattern `run_YYYYMMDD-HHMMSS_N{N}_{graph}_alpha{α}`.
+**Non-default parameters are automatically appended** to the folder name for tracking:
+- `chi{N}` → non-default bond_cutoff (e.g., `chi8`, `chi12`)
+- `lam{min}-{max}` → custom lambda range (e.g., `lam0.50-0.70`)
+- `pts{N}` → non-default num_points (e.g., `pts50`)
+
+**Examples:**
+```
+outputs/run_20260202-154356_N4_path_alpha0.80/
+outputs/run_20260202-220212_N4_path_alpha0.80_chi8_lam0.10-0.30_pts2/
+outputs/run_20260202-221500_N5_path_alpha0.80_chi3/
+```
 
 **Generated files:**
 ```
