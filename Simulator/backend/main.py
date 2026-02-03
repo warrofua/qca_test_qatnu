@@ -5,7 +5,7 @@ import asyncio
 import sys
 from pathlib import Path
 from typing import List, Dict, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -134,6 +134,18 @@ async def create_run(
         G_eff=config.get("G_eff", 6.674e-11),
         c=config.get("c", 1.0),
         omega=config.get("omega", 1.0),
+        lambda_min=config.get("lambda_min", 0.1),
+        lambda_max=config.get("lambda_max", 1.5),
+        num_points=config.get("num_points", 30),
+        avg_frustration=config.get("avg_frustration", 0.5),
+        safety_factor=config.get("safety_factor", 5.0),
+        target_frustration=config.get("target_frustration", 0.9),
+        max_multiplier=config.get("max_multiplier", 5.0),
+        frustration_time=config.get("frustration_time", 1.0),
+        use_hotspot_search=1 if config.get("use_hotspot_search", False) else 0,
+        hotspot_tolerance=config.get("hotspot_tolerance", 0.05),
+        hotspot_max_iterations=config.get("hotspot_max_iterations", 6),
+        J0=config.get("J0", 0.01),
         config_json=config,
     )
     
@@ -166,6 +178,18 @@ async def get_run(run_id: int, db_session: Session = Depends(get_db)):
             "G_eff": run.G_eff,
             "c": run.c,
             "omega": run.omega,
+            "lambda_min": run.lambda_min,
+            "lambda_max": run.lambda_max,
+            "num_points": run.num_points,
+            "avg_frustration": run.avg_frustration,
+            "safety_factor": run.safety_factor,
+            "target_frustration": run.target_frustration,
+            "max_multiplier": run.max_multiplier,
+            "frustration_time": run.frustration_time,
+            "use_hotspot_search": bool(run.use_hotspot_search),
+            "hotspot_tolerance": run.hotspot_tolerance,
+            "hotspot_max_iterations": run.hotspot_max_iterations,
+            "J0": run.J0,
         },
         "scales": {
             "lattice_spacing": run.lattice_spacing,
@@ -269,6 +293,12 @@ async def derive_parameters(config: dict):
     topology = config.get("topology", "path")
     N = config.get("N", 4)
     lambda_val = config.get("lambda", 0.5)
+    omega = config.get("omega", 1.0)
+    c_val = config.get("c", 1.0)
+    lambda_max = config.get("lambda_max", 1.5)
+    avg_frustration = config.get("avg_frustration", 0.5)
+    safety_factor = config.get("safety_factor", 5.0)
+    target_frustration = config.get("target_frustration", 0.9)
     
     # Compute scale anchoring
     scales = compute_all_scales(chi_max=chi_max)
@@ -281,18 +311,23 @@ async def derive_parameters(config: dict):
     # Derive perturbative parameters
     pert = compute_perturbative_parameters(
         lambda_val=lambda_val,
-        omega=1.0,
-        lambda_max=1.5,
-        avg_frustration=0.5
+        omega=omega,
+        lambda_max=lambda_max,
+        avg_frustration=avg_frustration,
+        safety_factor=safety_factor,
     )
     
     # Derive hotspot and Newtonian
-    hotspot = compute_hotspot_simple(lambda_val, chi_max)
+    hotspot = compute_hotspot_simple(
+        lambda_val,
+        chi_max,
+        target_frustration=target_frustration,
+    )
     t_scale = estimate_frustration_timescale(lambda_val)
     kappa = compute_kappa_from_Geff(
         G_eff=G_eff,
         alpha=pert["alpha_pert"],
-        c=1.0,
+        c=c_val,
         a=scales["lattice_spacing"]
     )
     k0 = compute_target_degree(topology, N)
@@ -427,7 +462,7 @@ async def set_run_status(run_id: int, status: str):
         "type": "status_change",
         "run_id": run_id,
         "status": status,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     })
 
 
@@ -444,12 +479,27 @@ async def run_validation_task(run_id: int, config: dict):
         chi_max = run.chi_max
         G_eff = run.G_eff
         topology = run.topology
+        c = run.c
+        omega = run.omega
+        lambda_min = run.lambda_min
+        lambda_max = run.lambda_max
+        num_points = run.num_points
+        avg_frustration = run.avg_frustration
+        safety_factor = run.safety_factor
+        target_frustration = run.target_frustration
+        max_multiplier = run.max_multiplier
+        frustration_time = run.frustration_time
+        use_hotspot_search = bool(run.use_hotspot_search)
+        hotspot_tolerance = run.hotspot_tolerance
+        hotspot_max_iterations = run.hotspot_max_iterations
+        J0 = run.J0
     
     # Step 1: Derive parameters from first principles
     scales = compute_all_scales(chi_max=chi_max)
     
     from .derivation.perturbative import compute_perturbative_parameters
-    from .derivation.frustration import compute_hotspot_simple
+    from .derivation.frustration import compute_hotspot_simple, compute_hotspot_multiplier
+    from .derivation.newtonian import compute_target_degree, compute_kappa_from_Geff
     from .derivation.newtonian import compute_kappa_from_Geff
     
     # Store derived scales in run
@@ -467,9 +517,9 @@ async def run_validation_task(run_id: int, config: dict):
     # Step 2: Lambda scan
     await set_run_status(run_id, "running")
     
-    lambda_min = 0.1
-    lambda_max = 1.5
-    num_points = config.get("num_points", 30)
+    lambda_min = config.get("lambda_min", lambda_min)
+    lambda_max = config.get("lambda_max", lambda_max)
+    num_points = config.get("num_points", num_points)
     lambda_vals = np.linspace(lambda_min, lambda_max, num_points)
     
     # Import physics engine
@@ -477,6 +527,8 @@ async def run_validation_task(run_id: int, config: dict):
     from core_qca import ExactQCA
     
     comparisons = []
+    failure_count = 0
+    last_error: str | None = None
     
     for i, lambda_val in enumerate(lambda_vals):
         # Check control signals
@@ -490,24 +542,60 @@ async def run_validation_task(run_id: int, config: dict):
                     session.refresh(run)
         
         # Derive parameters at this lambda
-        pert = compute_perturbative_parameters(lambda_val, omega=1.0, lambda_max=lambda_max)
+        pert = compute_perturbative_parameters(
+            lambda_val,
+            omega=omega,
+            lambda_max=lambda_max,
+            avg_frustration=avg_frustration,
+            safety_factor=safety_factor,
+        )
         alpha = pert["alpha_pert"]
+        deltaB = pert["deltaB"]
+        k0 = compute_target_degree(topology, N)
+        kappa = compute_kappa_from_Geff(
+            G_eff=G_eff,
+            alpha=alpha,
+            c=c,
+            a=scales["lattice_spacing"]
+        )
         
-        # Theory prediction for Lambda
-        hotspot = compute_hotspot_simple(lambda_val, chi_max)
-        chi_eff = min(chi_max, 1.0 + (hotspot * lambda_val) ** 2)
-        Lambda_theory = np.full(N, 2 * np.log2(chi_eff))  # Simplified
-        
-        # Run simulation (simplified for now)
         try:
             qca = ExactQCA(
                 N=N,
-                config={"lambda": lambda_val, "alpha": alpha},
+                config={
+                    "lambda": lambda_val,
+                    "alpha": alpha,
+                    "omega": omega,
+                    "J0": J0,
+                    "deltaB": deltaB,
+                    "k0": k0,
+                    "kappa": kappa,
+                },
                 bond_cutoff=chi_max
             )
             
             # Get ground state
             state = qca.get_ground_state()
+
+            # Theory prediction for Lambda
+            if use_hotspot_search:
+                hotspot = compute_hotspot_multiplier(
+                    qca,
+                    lambda_nominal=lambda_val,
+                    target_frustration=target_frustration,
+                    evolution_time=frustration_time,
+                    max_multiplier=max_multiplier,
+                    tolerance=hotspot_tolerance,
+                    max_iterations=hotspot_max_iterations
+                )
+            else:
+                hotspot = compute_hotspot_simple(
+                    lambda_val,
+                    chi_max,
+                    target_frustration=target_frustration,
+                )
+            chi_eff = min(chi_max, 1.0 + (hotspot * lambda_val) ** 2)
+            Lambda_theory = np.full(N, 2 * np.log2(chi_eff))  # Simplified
             
             # Measure Lambda from state
             from .extraction.bubble_density import extract_lambda_measured
@@ -539,6 +627,9 @@ async def run_validation_task(run_id: int, config: dict):
             
         except Exception as e:
             # Simulation failed at this point
+            failure_count += 1
+            last_error = str(e)
+            print(f"[ERROR] λ={lambda_val:.3f} failed: {e}")
             await manager.broadcast(run_id, {
                 "type": "error",
                 "message": f"Simulation failed at λ={lambda_val:.3f}: {e}"
@@ -559,6 +650,14 @@ async def run_validation_task(run_id: int, config: dict):
         })
     
     # Step 3: Compute agreement
+    if failure_count == num_points and not comparisons:
+        await set_run_status(run_id, "failed")
+        await manager.broadcast(run_id, {
+            "type": "error",
+            "message": f"All lambda points failed; run marked failed. Last error: {last_error or 'unknown'}"
+        })
+        return
+    
     await set_run_status(run_id, "grading")
     
     if comparisons:

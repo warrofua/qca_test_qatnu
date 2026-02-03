@@ -105,7 +105,7 @@ Agreement score: 94.2%
 
 ### 1. Scale Anchoring (Vacuum + Black Hole)
 
-From `mega_document.md` Sec. 6:
+From `mega_document_expanded_full.md` Sec. 6:
 
 ```python
 def compute_lattice_spacing(chi_max: int, beta: float = 1.0) -> float:
@@ -133,7 +133,7 @@ def compute_time_step(
 
 ### 2. α from Stinespring (Non-Perturbative)
 
-From `mega_document.md` Eq. 4.1 and Appendix:
+From `mega_document_expanded_full.md` Eq. 4.1 and Appendix:
 
 ```python
 def compute_alpha_stinespring(
@@ -168,7 +168,7 @@ def compute_alpha_perturbative(
     """
     Fallback: perturbative formula (mega_document Eq. 144)
     
-    α_pert ≈ (2λ² / (ω × Δ_eff)) × ⟨F⟩
+    α_pert ≈ (2λ² / (ω² × Δ_eff)) × ⟨F⟩
     
     Used when Stinespring is too expensive or for validation.
     """
@@ -237,7 +237,9 @@ def compute_hotspot_multiplier(
 
 ### 5. κ from Newtonian Limit
 
-From `mega_document.md` Appendix D:
+From `mega_document_expanded_full.md` Appendix D:
+
+**TODO:** Clarify in the simulator/UI that this relation is a hypothesis/preview in the theory, and treat it as an optional derivation step when comparing to first‑principles runs.
 
 ```python
 def compute_kappa_from_Geff(
@@ -618,4 +620,3 @@ def calibrate_alpha_formula():
 | **Physics rigor** | Medium (can tweak knobs) | High (all from first principles) |
 
 ---
-

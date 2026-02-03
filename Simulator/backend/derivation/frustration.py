@@ -92,23 +92,43 @@ def compute_hotspot_multiplier(
     float
         Hotspot multiplier M
     """
-    # This is a placeholder - actual implementation requires
-    # the ExactQCA class from the existing codebase
-    
-    # For now, return a default with logging
-    # In production, this would do the binary search
+    def measure_at_multiplier(M: float) -> float:
+        """Measure frustration after evolving with λ = M × λ_nominal."""
+        config = dict(getattr(qca, "config", {}))
+        config["lambda"] = lambda_nominal * M
+        # Preserve alpha if present
+        if "alpha" not in config:
+            config["alpha"] = 1.0
+        if "omega" not in config:
+            config["omega"] = 1.0
+        if "J0" not in config:
+            config["J0"] = 0.01
+        if "deltaB" not in config:
+            config["deltaB"] = 1.0
+        if "k0" not in config:
+            config["k0"] = 2.0
+        if "kappa" not in config:
+            config["kappa"] = 0.1
+        try:
+            test_qca = qca.__class__(
+                qca.N,
+                config,
+                bond_cutoff=qca.bond_cutoff,
+                edges=qca.edges
+            )
+            ground = test_qca.get_ground_state()
+            evolved = test_qca.evolve_state(ground, evolution_time)
+            return float(measure_frustration(evolved, test_qca))
+        except Exception:
+            return 0.0
     
     M = 3.0  # Default fallback
-    
-    # Simulated binary search log
     search_steps = []
     low, high = 1.0, max_multiplier
     
     for iteration in range(max_iterations):
         mid = (low + high) / 2
-        # In real implementation:
-        # frustration = measure_at_multiplier(mid)
-        frustration = target_frustration * mid / 3.0  # Placeholder
+        frustration = measure_at_multiplier(mid)
         
         search_steps.append(
             f"Iteration {iteration+1}: M={mid:.2f} → ⟨F⟩={frustration:.3f}"
@@ -122,7 +142,6 @@ def compute_hotspot_multiplier(
         else:
             high = mid
     else:
-        # Use best guess
         M = (low + high) / 2
         search_steps.append(f"Max iterations reached, using M={M:.2f}")
     

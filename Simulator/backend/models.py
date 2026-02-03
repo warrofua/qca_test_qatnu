@@ -38,6 +38,20 @@ class Run(Base):
     G_eff: Mapped[float] = mapped_column(default=6.674e-11, doc="Target Newton's constant (dimensionless)")
     c: Mapped[float] = mapped_column(default=1.0, doc="Speed of light")
     omega: Mapped[float] = mapped_column(default=1.0, doc="Bare clock frequency")
+
+    # Tunable scan and heuristic parameters (no hardcoded knobs)
+    lambda_min: Mapped[float] = mapped_column(default=0.1, doc="Minimum lambda in scan")
+    lambda_max: Mapped[float] = mapped_column(default=1.5, doc="Maximum lambda in scan")
+    num_points: Mapped[int] = mapped_column(default=30, doc="Number of lambda points")
+    avg_frustration: Mapped[float] = mapped_column(default=0.5, doc="⟨F⟩ heuristic for perturbative α")
+    safety_factor: Mapped[float] = mapped_column(default=5.0, doc="Δ_eff/λ_max safety factor")
+    target_frustration: Mapped[float] = mapped_column(default=0.9, doc="Target ⟨F_ij⟩ for hotspot")
+    max_multiplier: Mapped[float] = mapped_column(default=5.0, doc="Max hotspot multiplier search bound")
+    frustration_time: Mapped[float] = mapped_column(default=1.0, doc="Frustration protocol duration")
+    use_hotspot_search: Mapped[int] = mapped_column(default=0, doc="Use binary search for hotspot (0/1)")
+    hotspot_tolerance: Mapped[float] = mapped_column(default=0.05, doc="Target frustration tolerance")
+    hotspot_max_iterations: Mapped[int] = mapped_column(default=6, doc="Max hotspot search iterations")
+    J0: Mapped[float] = mapped_column(default=0.01, doc="Ising coupling strength")
     
     # Scale anchoring outputs
     lattice_spacing: Mapped[Optional[float]] = mapped_column(doc="a in Planck units")

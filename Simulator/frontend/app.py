@@ -23,7 +23,7 @@ class QATNUSimulator(App):
     """Terminal-based first principles physics validator."""
     
     CSS = """
-    Screen { align: center middle; }
+    Screen { }
     
     .title { 
         text-align: center; 
@@ -47,6 +47,15 @@ class QATNUSimulator(App):
         margin: 1 0;
     }
     
+    .input-row {
+        height: auto;
+    }
+    
+    .input-row Input {
+        width: 12;
+        min-width: 12;
+    }
+    
     .agreement { 
         text-align: center; 
         text-style: bold;
@@ -65,6 +74,17 @@ class QATNUSimulator(App):
         color: $text;
         content-align: center middle;
     }
+    
+    .status-inline {
+        height: 1;
+        color: $text-muted;
+        content-align: left middle;
+    }
+
+    #root { width: 1fr; height: 1fr; }
+    #main { height: 2.8fr; }  /* Main panels ≈74% height vs runs ≈26% */
+    #runs-panel { height: 1fr; }
+    #input-panel { height: 1fr; overflow: auto; }
     """
     
     BINDINGS = [
@@ -87,13 +107,13 @@ class QATNUSimulator(App):
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         
-        with Container():
+        with Container(id="root"):
             # Title
             yield Static("QATNU FIRST PRINCIPLES SIMULATOR", classes="title")
             yield Static("Validate theory through first-principles derivation", classes="subtitle")
             
             # Main layout: sidebar + content
-            with Horizontal():
+            with Horizontal(id="main"):
                 # Left panel: Inputs
                 with Vertical(classes="panel", id="input-panel"):
                     yield Label("Ground Truth Inputs", classes="title")
@@ -117,6 +137,44 @@ class QATNUSimulator(App):
                     with Container(classes="input-group"):
                         yield Label("G_eff:")
                         yield Input(value="6.674e-11", id="g-input")
+
+                    with Collapsible(title="Advanced (Heuristics)", collapsed=True):
+                        with Horizontal(classes="input-group input-row"):
+                            yield Label("λ_min:")
+                            yield Input(value="0.1", id="lambda-min-input")
+                        with Horizontal(classes="input-group input-row"):
+                            yield Label("λ_max:")
+                            yield Input(value="1.5", id="lambda-max-input")
+                        with Horizontal(classes="input-group input-row"):
+                            yield Label("λ points:")
+                            yield Input(value="30", id="points-input")
+                        with Horizontal(classes="input-group input-row"):
+                            yield Label("avg ⟨F⟩:")
+                            yield Input(value="0.5", id="avg-frustration-input")
+                        with Horizontal(classes="input-group input-row"):
+                            yield Label("safety factor:")
+                            yield Input(value="5.0", id="safety-factor-input")
+                        with Horizontal(classes="input-group input-row"):
+                            yield Label("target ⟨F⟩:")
+                            yield Input(value="0.9", id="target-frustration-input")
+                        with Horizontal(classes="input-group input-row"):
+                            yield Label("max multiplier:")
+                            yield Input(value="5.0", id="max-multiplier-input")
+                        with Horizontal(classes="input-group input-row"):
+                            yield Label("frustration time:")
+                            yield Input(value="1.0", id="frustration-time-input")
+                        with Horizontal(classes="input-group input-row"):
+                            yield Label("use hotspot (0/1):")
+                            yield Input(value="0", id="use-hotspot-search-input")
+                        with Horizontal(classes="input-group input-row"):
+                            yield Label("hotspot tol:")
+                            yield Input(value="0.05", id="hotspot-tolerance-input")
+                        with Horizontal(classes="input-group input-row"):
+                            yield Label("hotspot iters:")
+                            yield Input(value="6", id="hotspot-max-iter-input")
+                        with Horizontal(classes="input-group input-row"):
+                            yield Label("J0:")
+                            yield Input(value="0.01", id="j0-input")
                     
                     yield Button("Validate Theory", id="validate-btn", variant="primary")
                     yield Button("Cancel", id="cancel-btn", variant="error", disabled=True)
@@ -127,6 +185,9 @@ class QATNUSimulator(App):
                     
                     # Agreement display (hidden initially)
                     yield Static(id="agreement-display", classes="agreement")
+                    
+                    # Inline status (always visible)
+                    yield Static(id="status-inline", content="Status: idle", classes="status-inline")
                     
                     # Progress
                     with Container():
@@ -242,6 +303,10 @@ class QATNUSimulator(App):
             agreement_display.update(f"GRADE {grade} | Score: {score:.1%}")
             self.update_status(f"Validation complete: Grade {grade}")
             
+        elif msg_type == "error":
+            message = data.get("message", "Unknown error")
+            self.update_status(f"Error: {message}")
+
         elif msg_type == "status_change":
             status = data["status"]
             self.update_status(f"Run {data['run_id']}: {status}")
@@ -279,6 +344,19 @@ class QATNUSimulator(App):
             N = int(self.query_one("#n-input", Input).value)
             chi_max = int(self.query_one("#chi-input", Input).value)
             G_eff = float(self.query_one("#g-input", Input).value)
+            lambda_min = float(self.query_one("#lambda-min-input", Input).value)
+            lambda_max = float(self.query_one("#lambda-max-input", Input).value)
+            num_points = int(self.query_one("#points-input", Input).value)
+            avg_frustration = float(self.query_one("#avg-frustration-input", Input).value)
+            safety_factor = float(self.query_one("#safety-factor-input", Input).value)
+            target_frustration = float(self.query_one("#target-frustration-input", Input).value)
+            max_multiplier = float(self.query_one("#max-multiplier-input", Input).value)
+            frustration_time = float(self.query_one("#frustration-time-input", Input).value)
+            use_hotspot_search_raw = self.query_one("#use-hotspot-search-input", Input).value.strip().lower()
+            use_hotspot_search = use_hotspot_search_raw in {"1", "true", "yes", "y"}
+            hotspot_tolerance = float(self.query_one("#hotspot-tolerance-input", Input).value)
+            hotspot_max_iterations = int(self.query_one("#hotspot-max-iter-input", Input).value)
+            J0 = float(self.query_one("#j0-input", Input).value)
         except ValueError as e:
             self.update_status(f"Invalid input: {e}")
             return
@@ -299,6 +377,18 @@ class QATNUSimulator(App):
                         "N": N,
                         "chi_max": chi_max,
                         "G_eff": G_eff,
+                        "lambda_min": lambda_min,
+                        "lambda_max": lambda_max,
+                        "num_points": num_points,
+                        "avg_frustration": avg_frustration,
+                        "safety_factor": safety_factor,
+                        "target_frustration": target_frustration,
+                        "max_multiplier": max_multiplier,
+                        "frustration_time": frustration_time,
+                        "use_hotspot_search": use_hotspot_search,
+                        "hotspot_tolerance": hotspot_tolerance,
+                        "hotspot_max_iterations": hotspot_max_iterations,
+                        "J0": J0,
                     }
                 ) as resp:
                     result = await resp.json()
@@ -319,7 +409,11 @@ class QATNUSimulator(App):
                     # Send start command
                     await self.ws.send(json.dumps({
                         "type": "start_validation",
-                        "config": {"num_points": 30}
+                        "config": {
+                            "num_points": num_points,
+                            "lambda_min": lambda_min,
+                            "lambda_max": lambda_max
+                        }
                     }))
         
         except Exception as e:
@@ -332,7 +426,7 @@ class QATNUSimulator(App):
         
         # Reset progress
         progress = self.query_one("#scan-progress", ProgressBar)
-        progress.update(total=30, progress=0)
+        progress.update(total=num_points, progress=0)
         
         # Clear table (keep columns)
         table = self.query_one("#comparison-table", DataTable)
@@ -406,6 +500,8 @@ class QATNUSimulator(App):
         """Update status bar."""
         status_bar = self.query_one("#status-bar", Static)
         status_bar.update(f"[{self.connection_status}] {message}")
+        inline = self.query_one("#status-inline", Static)
+        inline.update(f"Status: {message}")
     
     def action_refresh_runs(self):
         """Refresh runs list (keybinding: r)."""

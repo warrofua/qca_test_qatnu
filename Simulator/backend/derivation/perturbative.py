@@ -1,8 +1,8 @@
 """
 Perturbative derivation: α and δB from validity constraints.
 
-From mega_document.md Eq. 144:
-α_pert ≈ (2λ² / (ω × Δ_eff)) × ⟨F⟩
+From mega_document_expanded_full.md (Appendix):
+α_pert ≈ (2λ² / (ω² × Δ_eff)) × ⟨F⟩
 
 And perturbative validity requires Δ_eff ≫ λ.
 """
@@ -74,9 +74,9 @@ def compute_alpha_perturbative(
     log_callback = None
 ) -> float:
     """
-    Compute α from perturbative formula (mega_document.md Eq. 144).
+    Compute α from perturbative formula (mega_document_expanded_full.md).
     
-    α_pert ≈ (2λ² / (ω × Δ_eff)) × ⟨F⟩
+    α_pert ≈ (2λ² / (ω² × Δ_eff)) × ⟨F⟩
     
     Where:
     - λ is promotion strength
@@ -102,7 +102,7 @@ def compute_alpha_perturbative(
     float
         Susceptibility α
     """
-    alpha = (2 * lambda_val**2 / (omega * delta_eff)) * avg_frustration
+    alpha = (2 * lambda_val**2 / (omega**2 * delta_eff)) * avg_frustration
     
     if log_callback:
         # Check perturbative validity
@@ -111,7 +111,7 @@ def compute_alpha_perturbative(
         
         log_callback({
             "parameter": "alpha_perturbative",
-            "formula": "α = (2λ² / (ω×Δ_eff)) × ⟨F⟩",
+            "formula": "α = (2λ² / (ω²×Δ_eff)) × ⟨F⟩",
             "inputs": {
                 "lambda": lambda_val,
                 "omega": omega,
@@ -120,8 +120,8 @@ def compute_alpha_perturbative(
             },
             "output": float(alpha),
             "steps": [
-                f"α = (2 × {lambda_val:.3f}²) / ({omega:.3f} × {delta_eff:.3f}) × {avg_frustration:.3f}",
-                f"α = {2*lambda_val**2:.4f} / {omega*delta_eff:.4f} × {avg_frustration:.3f}",
+                f"α = (2 × {lambda_val:.3f}²) / ({omega:.3f}² × {delta_eff:.3f}) × {avg_frustration:.3f}",
+                f"α = {2*lambda_val**2:.4f} / {(omega**2)*delta_eff:.4f} × {avg_frustration:.3f}",
                 f"α = {alpha:.6f}",
                 f"Perturbative validity: Δ_eff/λ = {validity_ratio:.2f} {'✓' if is_valid else '✗'}"
             ]

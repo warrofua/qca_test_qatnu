@@ -132,7 +132,7 @@ using $F_{ij}^2=F_{ij}$ and $\langle R_{ij}R_{ij}^\dagger\rangle \propto \langle
 
 The real part of $\Sigma_i(0)$ shifts the bare frequency $\omega\to \omega_{\text{eff}}^{(i)} = \omega + \Sigma_i(0)$, so that
 \begin{equation}
-\omega_{\text{eff}}^{(i)} \approx \omega\left(1 - \frac{2\lambda^2}{\omega\Delta_{\text{eff}}}
+\omega_{\text{eff}}^{(i)} \approx \omega\left(1 - \frac{2\lambda^2}{\omega^2\Delta_{\text{eff}}}
 \frac{\sum_{j\in\partial i} \langle F_{ij}\rangle\,\langle n_{ij}\rangle}{\sum_{j\in\partial i}\langle n_{ij}\rangle} \Lambda_i\right),
 \end{equation}
 where we have introduced $\Lambda_i$ from~\eqref{eq:Lambda-def} and absorbed constants. Matching to a first-order expansion of~\eqref{eq:clock-slowdown},
@@ -141,7 +141,7 @@ where we have introduced $\Lambda_i$ from~\eqref{eq:Lambda-def} and absorbed con
 \end{equation}
 yields a microscopic expression
 \begin{equation}
-\alpha_{\text{pert}}(\lambda) \approx \frac{2\lambda^2}{\omega\Delta_{\text{eff}}}
+\alpha_{\text{pert}}(\lambda) \approx \frac{2\lambda^2}{\omega^2\Delta_{\text{eff}}}
 \frac{\sum_{j\in\partial i} \langle F_{ij}\rangle\,\langle n_{ij}\rangle}{\sum_{j\in\partial i}\langle n_{ij}\rangle}.
 \label{eq:alpha-pert}
 \end{equation}

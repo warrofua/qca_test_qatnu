@@ -74,6 +74,10 @@ class DerivationCoordinator:
         c: float = 1.0,
         omega: float = 1.0,
         lambda_max: float = 1.5,
+        avg_frustration: float = 0.5,
+        safety_factor: float = 5.0,
+        target_frustration: float = 0.9,
+        max_multiplier: float = 5.0,
     ):
         self.run_id = run_id
         self.db = db_session
@@ -86,6 +90,10 @@ class DerivationCoordinator:
         self.c = c
         self.omega = omega
         self.lambda_max = lambda_max
+        self.avg_frustration = avg_frustration
+        self.safety_factor = safety_factor
+        self.target_frustration = target_frustration
+        self.max_multiplier = max_multiplier
         
         # Step counter for logging
         self.step_number = 0
@@ -155,7 +163,8 @@ class DerivationCoordinator:
             lambda_val=lambda_val,
             omega=self.omega,
             lambda_max=self.lambda_max,
-            avg_frustration=0.5,  # Could be derived from topology
+            avg_frustration=self.avg_frustration,
+            safety_factor=self.safety_factor,
             log_callback=lambda entry: self.log_step(
                 entry["parameter"],
                 entry["formula"],
@@ -169,6 +178,7 @@ class DerivationCoordinator:
         hotspot = compute_hotspot_simple(
             lambda_val=lambda_val,
             chi_max=self.chi_max,
+            target_frustration=self.target_frustration,
             log_callback=lambda entry: self.log_step(
                 entry["parameter"],
                 entry["formula"],
@@ -252,9 +262,9 @@ class DerivationCoordinator:
             warnings.append(f"κ = {params.kappa:.6e} is non-positive!")
         
         # Check hotspot is reasonable
-        if params.hotspot_multiplier < 1.5 or params.hotspot_multiplier > 5.0:
+        if params.hotspot_multiplier < 1.5 or params.hotspot_multiplier > self.max_multiplier:
             warnings.append(
-                f"Hotspot M = {params.hotspot_multiplier:.2f} outside typical range [1.5, 5.0]"
+                f"Hotspot M = {params.hotspot_multiplier:.2f} outside typical range [1.5, {self.max_multiplier:.1f}]"
             )
         
         return {
