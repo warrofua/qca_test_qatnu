@@ -440,3 +440,26 @@ Summary:
 - **Interpretation update**:
   - Topology-specific critical-slowing peaks persist at N5, and at least two topologies (star, cycle) show meaningful finite-size drift in peak lambda.
   - Under current data, this argues against a single universal revival-locked lambda across topologies at fixed hotspot protocol.
+
+## Deep-time critical slowing: N5 chi=4 anchor check (February 24, 2026)
+- **Path/star chi=4 anchor run**:
+  - `outputs/critical_slowing_obsref_N5_pathstar_hotspot3_chi4_anchor_20260224/summary.csv`
+  - command:
+    - `OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 .venv/bin/python scripts/critical_slowing_scan.py --N 5 --topologies path,star --lambdas 'path:1.0,1.1,1.2;star:1.4,1.5,1.6' --bond-cutoff 4 --hotspot-multiplier 3.0 --t-max 70 --n-times 140 --output-dir outputs/critical_slowing_obsref_N5_pathstar_hotspot3_chi4_anchor_20260224`
+  - readout:
+    - `path` (`tau_dephase_probe`) anchor-peak at `lambda=1.0` (`~14.60`)
+    - `star` (`tau_dephase_probe`) anchor-peak at `lambda=1.6` (`~7.05`) in tested anchors
+  - chi3 vs chi4-anchor shift:
+    - `path`: `1.10 -> 1.00`
+    - `star`: `1.50 -> 1.60`
+
+- **Cycle chi=4 feasibility probe**:
+  - attempted command:
+    - `OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 .venv/bin/python scripts/critical_slowing_scan.py --N 5 --topologies cycle --lambdas 'cycle:0.61' --bond-cutoff 4 --hotspot-multiplier 3.0 --t-max 60 --n-times 120 --output-dir outputs/critical_slowing_obsref_N5_cycle_hotspot3_chi4_probe_20260224`
+  - outcome:
+    - no first-point completion in practical interactive window on current machine; probe terminated.
+    - output directory exists but has no completed result files.
+
+- **Interpretation update**:
+  - Peak locations are cutoff-sensitive in `path/star` at N5.
+  - `cycle` at `N5, chi=4` is currently throughput-limited on this hardware for interactive experimentation.

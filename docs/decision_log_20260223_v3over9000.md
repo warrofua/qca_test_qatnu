@@ -465,5 +465,50 @@ N4 vs N5 peak snapshot (same estimator family):
 - `star` (`tau_dephase_probe`): `1.30 -> 1.50`
 - `cycle` (`tau_dephase_global`): `0.49 -> 0.61`
 
+## Sweep W: N5 chi=4 anchor check + cycle tractability probe (2026-02-24)
+Goal:
+Test whether the N5 chi=3 peak shifts survive a cutoff upgrade (`chi=4`) at sparse anchor lambdas.
+
+### W1: N5 path/star chi=4 anchors
+Command:
+`OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 .venv/bin/python scripts/critical_slowing_scan.py --N 5 --topologies path,star --lambdas 'path:1.0,1.1,1.2;star:1.4,1.5,1.6' --bond-cutoff 4 --hotspot-multiplier 3.0 --t-max 70 --n-times 140 --output-dir outputs/critical_slowing_obsref_N5_pathstar_hotspot3_chi4_anchor_20260224`
+
+Readout:
+- `path` (`tau_dephase_probe`):
+  - `lambda=1.0`: `~14.60`
+  - `lambda=1.1`: `~7.05`
+  - `lambda=1.2`: `~8.06`
+  - anchor-peak at `lambda=1.0`.
+- `star` (`tau_dephase_probe`):
+  - `lambda=1.4`: `~5.04`
+  - `lambda=1.5`: `~4.03`
+  - `lambda=1.6`: `~7.05`
+  - anchor-peak at `lambda=1.6`.
+
+Chi=3 vs chi=4-anchor comparison:
+- `path`: chi3 peak `1.10` -> chi4-anchor peak `1.00` (left shift).
+- `star`: chi3 peak `1.50` -> chi4-anchor peak `1.60` in tested anchors (right shift).
+
+Interpretation:
+- Cutoff effects are material for peak location in both topologies.
+- This weakens any claim that the chi3 N5 peaks are cutoff-stable.
+
+Artifacts:
+- `outputs/critical_slowing_obsref_N5_pathstar_hotspot3_chi4_anchor_20260224/summary.csv`
+- `outputs/critical_slowing_obsref_N5_pathstar_hotspot3_chi4_anchor_20260224/tau_dephase_vs_lambda.png`
+- `outputs/critical_slowing_obsref_N5_pathstar_hotspot3_chi4_anchor_20260224/report.md`
+
+### W2: N5 cycle chi=4 feasibility probe
+Attempted command:
+`OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 .venv/bin/python scripts/critical_slowing_scan.py --N 5 --topologies cycle --lambdas 'cycle:0.61' --bond-cutoff 4 --hotspot-multiplier 3.0 --t-max 60 --n-times 120 --output-dir outputs/critical_slowing_obsref_N5_cycle_hotspot3_chi4_probe_20260224`
+
+Outcome:
+- No first-point completion in practical interactive time window; process remained compute-bound and was terminated.
+- Output directory exists but contains no completed artifacts.
+
+Interpretation:
+- On current hardware, `N5 cycle chi=4` deep-time anchors are not practical for iterative scans.
+- This point should be revisited on upgraded hardware (or with a sparse/iterative eigensolver path).
+
 ## Immediate next experiment
-Run a cutoff-upgrade check (`N5`, `chi=4`) on a sparse lambda anchor set around these N5 peaks to determine whether observed peak shifts are true finite-size physics or `chi=3` truncation artifacts.
+On upgraded hardware, run a minimal `N5 cycle chi=4` anchor pair (`lambda~0.55,0.65`) plus one `path/star` guard anchor each, then decide whether to lock any topology-specific scaling law or move to sparse-eigensolver implementation.
