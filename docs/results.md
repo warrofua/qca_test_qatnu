@@ -376,3 +376,40 @@ Summary:
   - `outputs/frozen_screening_N4_path_cycle_star_20260224/mu2_vs_lambda.png`
   - `outputs/frozen_screening_N4_path_cycle_star_20260224/fit_residuals_vs_lambda.png`
   - `outputs/frozen_screening_N4_path_cycle_star_20260224/report.md`
+
+## Deep-time critical slowing: observable-refined readout (N4, February 24, 2026)
+- **Script extended**: `scripts/critical_slowing_scan.py`
+  - Added topology-aware observables:
+    - `site_var(t)` (spatial variance of `Lambda_i`)
+    - Laplacian-mode amplitudes from centered `Lambda_i(t)`:
+      - `mode1_amp(t)` (first nontrivial mode),
+      - `mode_dom_amp(t)` (largest fluctuating nontrivial mode).
+  - Added numerical guardrail:
+    - `--min-scale` (default `1e-10`) suppresses tau estimates for symmetry-suppressed/noise-floor channels.
+
+- **Primary refinement run (path/star, hotspot=3.0)**:
+  - `outputs/critical_slowing_obsref_N4_pathstar_hotspot3_minscale_20260224/summary.csv`
+  - Command:
+    - `OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 .venv/bin/python scripts/critical_slowing_scan.py --N 4 --topologies path,star --lambdas 'path:0.85,0.9,0.95,1.0,1.03,1.08,1.12,1.2;star:1.05,1.1,1.15,1.2,1.25,1.3,1.35,1.4,1.45,1.5' --bond-cutoff 4 --hotspot-multiplier 3.0 --t-max 70 --n-times 180 --output-dir outputs/critical_slowing_obsref_N4_pathstar_hotspot3_minscale_20260224`
+  - Readout:
+    - `mode1` is correctly treated as non-informative (`NaN`) due symmetry/noise-floor amplitude.
+    - path peak is consistent across informative channels:
+      - `tau_dephase_probe` and `tau_dephase_mode_dom` max at `lambda=1.12` (`~9.39`).
+    - star peak is also consistent:
+      - `tau_dephase_probe` and `tau_dephase_mode_dom` max at `lambda=1.30` (`~7.04`).
+    - `tau_dephase_site_var` agrees with the same peak locations (smaller magnitudes).
+
+- **Cycle control (same estimator/settings)**:
+  - `outputs/critical_slowing_obsref_N4_cycle_hotspot3_minscale_20260224/summary.csv`
+  - Command:
+    - `OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 .venv/bin/python scripts/critical_slowing_scan.py --N 4 --topologies cycle --lambdas 'cycle:0.35,0.45,0.49,0.55,0.65' --bond-cutoff 4 --hotspot-multiplier 3.0 --t-max 70 --n-times 180 --output-dir outputs/critical_slowing_obsref_N4_cycle_hotspot3_minscale_20260224`
+  - Readout:
+    - probe/mode observables are symmetry-suppressed and therefore `NaN` by construction after `--min-scale`.
+    - global channel still carries the revival signal: `tau_dephase_global` peaks at `lambda=0.49` (`~7.82`).
+
+- **Interpretation update**:
+  - The dynamic slowing signal is real but observable-dependent by topology:
+    - cycle -> global channel,
+    - path/star -> probe or dominant-Laplacian mode.
+  - The refined analysis removes the earlier false long-tau artifacts from near-zero mode channels.
+  - Current N4 evidence favors topology-specific peak locations rather than a single universal lambda across topologies.

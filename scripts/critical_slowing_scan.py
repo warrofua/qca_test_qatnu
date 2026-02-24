@@ -15,11 +15,10 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -87,6 +86,7 @@ def _equilibration_time(
     tail_frac: float,
     rel_tol: float,
     sustain: int,
+    min_scale: float = 1e-12,
 ) -> Tuple[float, float, float, float]:
     """
     Return:
@@ -104,6 +104,8 @@ def _equilibration_time(
 
     dev = np.abs(values - tail_mean)
     scale = max(float(np.max(dev)), 1e-15)
+    if scale <= float(min_scale):
+        return float("nan"), tail_mean, tail_std, float("nan")
     threshold = float(rel_tol) * scale
 
     w = int(max(1, sustain))
@@ -121,6 +123,7 @@ def _dephasing_time(
     tail_mean: float,
     rel_tol: float,
     sustain: int,
+    min_scale: float = 1e-12,
 ) -> float:
     """
     Running-average convergence time.
@@ -134,6 +137,8 @@ def _dephasing_time(
     running_mean = cumsum / (np.arange(n, dtype=float) + 1.0)
     dev = np.abs(running_mean - float(tail_mean))
     scale = max(float(np.max(np.abs(values - tail_mean))), 1e-15)
+    if scale <= float(min_scale):
+        return float("nan")
     threshold = float(rel_tol) * scale
     w = int(max(1, sustain))
     if w > n:
@@ -212,6 +217,82 @@ def _lambda_timeseries(
     return lam_site
 
 
+def _graph_laplacian(n: int, edges: Sequence[Tuple[int, int]]) -> np.ndarray:
+    lap = np.zeros((n, n), dtype=float)
+    for u, v in edges:
+        lap[u, u] += 1.0
+        lap[v, v] += 1.0
+        lap[u, v] -= 1.0
+        lap[v, u] -= 1.0
+    return lap
+
+
+def _mode_observables(
+    lam_site_t: np.ndarray,
+    edges: Sequence[Tuple[int, int]],
+) -> Dict[str, object]:
+    """
+    Build topology-aware mode observables from Lambda_i(t).
+    Uses graph Laplacian eigenmodes on centered Lambda_i(t) to avoid mean-mode leakage.
+    """
+    n, t_count = lam_site_t.shape
+    centered = lam_site_t - np.mean(lam_site_t, axis=0, keepdims=True)
+    site_var = np.var(lam_site_t, axis=0)
+
+    if n <= 1:
+        zeros = np.zeros(t_count, dtype=float)
+        return {
+            "site_var": site_var,
+            "mode1_amp": zeros,
+            "mode_dom_amp": zeros,
+            "mode1_index": -1,
+            "mode_dom_index": -1,
+            "mode1_eigval": float("nan"),
+            "mode_dom_eigval": float("nan"),
+        }
+
+    lap = _graph_laplacian(n, edges)
+    eigvals, eigvecs = np.linalg.eigh(lap)
+    nontrivial = [i for i, ev in enumerate(eigvals) if ev > 1e-12]
+    if not nontrivial:
+        zeros = np.zeros(t_count, dtype=float)
+        return {
+            "site_var": site_var,
+            "mode1_amp": zeros,
+            "mode_dom_amp": zeros,
+            "mode1_index": -1,
+            "mode_dom_index": -1,
+            "mode1_eigval": float("nan"),
+            "mode_dom_eigval": float("nan"),
+        }
+
+    mode1_idx = int(nontrivial[0])
+    mode1_vec = eigvecs[:, mode1_idx]
+    mode1_amp = mode1_vec @ centered
+
+    # Pick the nontrivial mode with largest temporal fluctuation amplitude.
+    dom_idx = mode1_idx
+    dom_std = -1.0
+    for idx in nontrivial:
+        amp = eigvecs[:, idx] @ centered
+        s = float(np.std(amp))
+        if s > dom_std:
+            dom_std = s
+            dom_idx = int(idx)
+    mode_dom_vec = eigvecs[:, dom_idx]
+    mode_dom_amp = mode_dom_vec @ centered
+
+    return {
+        "site_var": site_var,
+        "mode1_amp": mode1_amp,
+        "mode_dom_amp": mode_dom_amp,
+        "mode1_index": mode1_idx,
+        "mode_dom_index": dom_idx,
+        "mode1_eigval": float(eigvals[mode1_idx]),
+        "mode_dom_eigval": float(eigvals[dom_idx]),
+    }
+
+
 def _plot_tau(summary: pd.DataFrame, out_dir: Path) -> None:
     if summary.empty:
         return
@@ -235,6 +316,37 @@ def _plot_tau(summary: pd.DataFrame, out_dir: Path) -> None:
     plt.close()
 
 
+def _plot_tau_dephase(summary: pd.DataFrame, out_dir: Path) -> None:
+    if summary.empty:
+        return
+    plt.figure(figsize=(9.2, 5.6))
+    for topo, subset in summary.groupby("topology"):
+        subset = subset.sort_values("lambda")
+        plt.plot(
+            subset["lambda"],
+            subset["tau_dephase_probe"],
+            marker="o",
+            linewidth=1.8,
+            label=f"{topo} probe",
+        )
+        plt.plot(
+            subset["lambda"],
+            subset["tau_dephase_mode_dom"],
+            marker="x",
+            linewidth=1.5,
+            linestyle="--",
+            label=f"{topo} mode-dom",
+        )
+    plt.xlabel("lambda")
+    plt.ylabel("tau_dephase")
+    plt.title("Dephasing time vs lambda (probe and dominant Laplacian mode)")
+    plt.grid(True, alpha=0.3)
+    plt.legend(fontsize=8, ncol=2)
+    plt.tight_layout()
+    plt.savefig(out_dir / "tau_dephase_vs_lambda.png", dpi=220, bbox_inches="tight")
+    plt.close()
+
+
 def _plot_examples(example_rows: List[Dict[str, object]], out_dir: Path) -> None:
     if not example_rows:
         return
@@ -242,6 +354,7 @@ def _plot_examples(example_rows: List[Dict[str, object]], out_dir: Path) -> None
         times = np.asarray(row["times"], dtype=float)
         probe_gap = np.asarray(row["probe_gap"], dtype=float)
         global_lam = np.asarray(row["global_lambda"], dtype=float)
+        mode_dom = np.asarray(row["mode_dom"], dtype=float)
         topo = str(row["topology"])
         lam = float(row["lambda"])
         tau = float(row["tau_eq_probe"])
@@ -251,6 +364,7 @@ def _plot_examples(example_rows: List[Dict[str, object]], out_dir: Path) -> None
         plt.figure(figsize=(8.8, 4.8))
         plt.plot(times, probe_gap, linewidth=1.8, label="probe gap: Lambda_in - Lambda_out")
         plt.plot(times, global_lam, linewidth=1.3, alpha=0.7, label="global mean Lambda")
+        plt.plot(times, mode_dom, linewidth=1.2, alpha=0.8, label="dominant mode amplitude")
         plt.axhline(tail_mean, color="black", linestyle="--", alpha=0.7, label="tail mean")
         plt.axhline(tail_mean + thr, color="gray", linestyle=":", alpha=0.6)
         plt.axhline(tail_mean - thr, color="gray", linestyle=":", alpha=0.6, label="eq threshold band")
@@ -285,6 +399,7 @@ def _write_report(out_dir: Path, args: argparse.Namespace, summary: pd.DataFrame
     lines.append(f"- tail_frac: {args.tail_frac}")
     lines.append(f"- rel_tol: {args.rel_tol}")
     lines.append(f"- sustain_points: {args.sustain_points}")
+    lines.append(f"- min_scale: {args.min_scale}")
     lines.append("")
     lines.append("## Summary")
     lines.append("")
@@ -298,6 +413,7 @@ def _write_report(out_dir: Path, args: argparse.Namespace, summary: pd.DataFrame
     lines.append("## Artifacts")
     lines.append(f"- `{out_dir / 'summary.csv'}`")
     lines.append(f"- `{out_dir / 'tau_eq_probe_vs_lambda.png'}`")
+    lines.append(f"- `{out_dir / 'tau_dephase_vs_lambda.png'}`")
     lines.append(f"- `{out_dir / 'timeseries_samples.json'}`")
     (out_dir / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -348,6 +464,10 @@ def run(args: argparse.Namespace) -> Path:
             global_lam = np.mean(lam_site_t, axis=0)
             probe_out, probe_in = topo.probes
             probe_gap = lam_site_t[probe_in, :] - lam_site_t[probe_out, :]
+            mode_obs = _mode_observables(lam_site_t=lam_site_t, edges=topo.edges)
+            site_var = np.asarray(mode_obs["site_var"], dtype=float)
+            mode1_amp = np.asarray(mode_obs["mode1_amp"], dtype=float)
+            mode_dom_amp = np.asarray(mode_obs["mode_dom_amp"], dtype=float)
 
             tau_g, tail_g, std_g, thr_g = _equilibration_time(
                 times=times,
@@ -355,6 +475,7 @@ def run(args: argparse.Namespace) -> Path:
                 tail_frac=float(args.tail_frac),
                 rel_tol=float(args.rel_tol),
                 sustain=int(args.sustain_points),
+                min_scale=float(args.min_scale),
             )
             tau_p, tail_p, std_p, thr_p = _equilibration_time(
                 times=times,
@@ -362,6 +483,7 @@ def run(args: argparse.Namespace) -> Path:
                 tail_frac=float(args.tail_frac),
                 rel_tol=float(args.rel_tol),
                 sustain=int(args.sustain_points),
+                min_scale=float(args.min_scale),
             )
             tau_dephase_g = _dephasing_time(
                 times=times,
@@ -369,6 +491,7 @@ def run(args: argparse.Namespace) -> Path:
                 tail_mean=tail_g,
                 rel_tol=float(args.rel_tol),
                 sustain=int(args.sustain_points),
+                min_scale=float(args.min_scale),
             )
             tau_dephase_p = _dephasing_time(
                 times=times,
@@ -376,6 +499,55 @@ def run(args: argparse.Namespace) -> Path:
                 tail_mean=tail_p,
                 rel_tol=float(args.rel_tol),
                 sustain=int(args.sustain_points),
+                min_scale=float(args.min_scale),
+            )
+            tau_sv, tail_sv, std_sv, thr_sv = _equilibration_time(
+                times=times,
+                values=site_var,
+                tail_frac=float(args.tail_frac),
+                rel_tol=float(args.rel_tol),
+                sustain=int(args.sustain_points),
+                min_scale=float(args.min_scale),
+            )
+            tau_dephase_sv = _dephasing_time(
+                times=times,
+                values=site_var,
+                tail_mean=tail_sv,
+                rel_tol=float(args.rel_tol),
+                sustain=int(args.sustain_points),
+                min_scale=float(args.min_scale),
+            )
+            tau_m1, tail_m1, std_m1, thr_m1 = _equilibration_time(
+                times=times,
+                values=mode1_amp,
+                tail_frac=float(args.tail_frac),
+                rel_tol=float(args.rel_tol),
+                sustain=int(args.sustain_points),
+                min_scale=float(args.min_scale),
+            )
+            tau_dephase_m1 = _dephasing_time(
+                times=times,
+                values=mode1_amp,
+                tail_mean=tail_m1,
+                rel_tol=float(args.rel_tol),
+                sustain=int(args.sustain_points),
+                min_scale=float(args.min_scale),
+            )
+            tau_md, tail_md, std_md, thr_md = _equilibration_time(
+                times=times,
+                values=mode_dom_amp,
+                tail_frac=float(args.tail_frac),
+                rel_tol=float(args.rel_tol),
+                sustain=int(args.sustain_points),
+                min_scale=float(args.min_scale),
+            )
+            tau_dephase_md = _dephasing_time(
+                times=times,
+                values=mode_dom_amp,
+                tail_mean=tail_md,
+                rel_tol=float(args.rel_tol),
+                sustain=int(args.sustain_points),
+                min_scale=float(args.min_scale),
             )
             rows.append(
                 {
@@ -385,22 +557,46 @@ def run(args: argparse.Namespace) -> Path:
                     "tau_eq_probe": float(tau_p),
                     "tau_dephase_global": float(tau_dephase_g),
                     "tau_dephase_probe": float(tau_dephase_p),
+                    "tau_eq_site_var": float(tau_sv),
+                    "tau_dephase_site_var": float(tau_dephase_sv),
+                    "tau_eq_mode1": float(tau_m1),
+                    "tau_dephase_mode1": float(tau_dephase_m1),
+                    "tau_eq_mode_dom": float(tau_md),
+                    "tau_dephase_mode_dom": float(tau_dephase_md),
                     "tail_mean_global": float(tail_g),
                     "tail_std_global": float(std_g),
                     "threshold_global": float(thr_g),
                     "tail_mean_probe": float(tail_p),
                     "tail_std_probe": float(std_p),
                     "threshold_probe": float(thr_p),
+                    "tail_mean_site_var": float(tail_sv),
+                    "tail_std_site_var": float(std_sv),
+                    "threshold_site_var": float(thr_sv),
+                    "tail_mean_mode1": float(tail_m1),
+                    "tail_std_mode1": float(std_m1),
+                    "threshold_mode1": float(thr_m1),
+                    "tail_mean_mode_dom": float(tail_md),
+                    "tail_std_mode_dom": float(std_md),
+                    "threshold_mode_dom": float(thr_md),
                     "final_global_lambda": float(global_lam[-1]),
                     "final_probe_gap": float(probe_gap[-1]),
                     "max_abs_probe_gap": float(np.max(np.abs(probe_gap))),
+                    "final_site_var": float(site_var[-1]),
+                    "final_mode1_amp": float(mode1_amp[-1]),
+                    "final_mode_dom_amp": float(mode_dom_amp[-1]),
+                    "max_abs_mode1_amp": float(np.max(np.abs(mode1_amp))),
+                    "max_abs_mode_dom_amp": float(np.max(np.abs(mode_dom_amp))),
+                    "mode1_index": int(mode_obs["mode1_index"]),
+                    "mode_dom_index": int(mode_obs["mode_dom_index"]),
+                    "mode1_eigval": float(mode_obs["mode1_eigval"]),
+                    "mode_dom_eigval": float(mode_obs["mode_dom_eigval"]),
                     "dim_nominal": int(qca_nom.total_dim),
                     "dim_hotspot": int(qca_hot.total_dim),
                 }
             )
             print(
                 f"  lambda={lam:.3f} tau_eq_probe={tau_p:.3f} tau_eq_global={tau_g:.3f} "
-                f"tau_dephase_probe={tau_dephase_p:.3f} "
+                f"tau_dephase_probe={tau_dephase_p:.3f} tau_dephase_mode_dom={tau_dephase_md:.3f} "
                 f"tail_std_probe={std_p:.3e}",
                 flush=True,
             )
@@ -413,6 +609,7 @@ def run(args: argparse.Namespace) -> Path:
                         "times": times.tolist(),
                         "probe_gap": probe_gap.tolist(),
                         "global_lambda": global_lam.tolist(),
+                        "mode_dom": mode_dom_amp.tolist(),
                         "tau_eq_probe": float(tau_p),
                         "tail_mean_probe": float(tail_p),
                         "threshold_probe": float(thr_p),
@@ -426,6 +623,7 @@ def run(args: argparse.Namespace) -> Path:
     summary.to_csv(summary_path, index=False)
 
     _plot_tau(summary, out_dir)
+    _plot_tau_dephase(summary, out_dir)
     _plot_examples(sample_rows, out_dir)
     (out_dir / "timeseries_samples.json").write_text(
         json.dumps(sample_rows, indent=2),
@@ -460,6 +658,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--tail-frac", type=float, default=0.2)
     p.add_argument("--rel-tol", type=float, default=0.08)
     p.add_argument("--sustain-points", type=int, default=8)
+    p.add_argument(
+        "--min-scale",
+        type=float,
+        default=1e-10,
+        help="Suppress tau estimates when observable amplitude is below this scale.",
+    )
     p.add_argument("--max-sample-plots", type=int, default=6)
     p.add_argument("--output-dir", type=str, default="")
     return p.parse_args()

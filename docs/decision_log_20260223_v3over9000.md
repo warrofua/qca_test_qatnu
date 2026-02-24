@@ -370,5 +370,50 @@ Artifacts:
 - `outputs/critical_slowing_N4_revival_hotspot3_20260224/tau_eq_probe_vs_lambda.png`
 - `outputs/critical_slowing_N4_revival_hotspot3_20260224/report.md`
 
+## Sweep U: observable refinement + noise-floor guard (2026-02-24)
+Goal:
+Resolve the path/star ambiguity from Sweep T by adding topology-aware observables and removing numerical-noise false positives.
+
+Code updates:
+- `scripts/critical_slowing_scan.py`
+  - added spatial observables:
+    - `site_var(t) = Var_i[Lambda_i(t)]`
+    - graph-Laplacian mode amplitudes from centered `Lambda_i(t)`
+      - `mode1_amp(t)` (first nontrivial mode)
+      - `mode_dom_amp(t)` (nontrivial mode with largest temporal fluctuation)
+  - added robust dephasing guard: `--min-scale` (default `1e-10`) so symmetry-suppressed/noise-floor channels return `NaN` instead of fake long taus.
+  - added `tau_dephase_vs_lambda.png` artifact.
+
+### U1: path/star dense hotspot-3 refinement
+Command:
+`OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 .venv/bin/python scripts/critical_slowing_scan.py --N 4 --topologies path,star --lambdas 'path:0.85,0.9,0.95,1.0,1.03,1.08,1.12,1.2;star:1.05,1.1,1.15,1.2,1.25,1.3,1.35,1.4,1.45,1.5' --bond-cutoff 4 --hotspot-multiplier 3.0 --t-max 70 --n-times 180 --output-dir outputs/critical_slowing_obsref_N4_pathstar_hotspot3_minscale_20260224`
+
+Readout:
+- `mode1` channel is symmetry-suppressed (amplitude ~`1e-15`) and correctly rejected by `--min-scale`.
+- consistent finite-signal peaks:
+  - `path`: `tau_dephase_probe` and `tau_dephase_mode_dom` both peak at `lambda=1.12` (`~9.39`)
+  - `star`: both peak at `lambda=1.30` (`~7.04`)
+  - `site_var` confirms same peak locations with smaller magnitudes.
+
+Artifacts:
+- `outputs/critical_slowing_obsref_N4_pathstar_hotspot3_minscale_20260224/summary.csv`
+- `outputs/critical_slowing_obsref_N4_pathstar_hotspot3_minscale_20260224/tau_dephase_vs_lambda.png`
+- `outputs/critical_slowing_obsref_N4_pathstar_hotspot3_minscale_20260224/report.md`
+
+### U2: cycle control under same estimator
+Command:
+`OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 .venv/bin/python scripts/critical_slowing_scan.py --N 4 --topologies cycle --lambdas 'cycle:0.35,0.45,0.49,0.55,0.65' --bond-cutoff 4 --hotspot-multiplier 3.0 --t-max 70 --n-times 180 --output-dir outputs/critical_slowing_obsref_N4_cycle_hotspot3_minscale_20260224`
+
+Readout:
+- probe/mode channels are symmetry-suppressed for cycle (all `NaN` after noise-floor guard).
+- global channel still captures the known revival-adjacent slowdown:
+  - `tau_dephase_global` peaks at `lambda=0.49` (`~7.82`) in this scan.
+
+Interpretation:
+- Observable choice is topology-dependent:
+  - cycle: use global channel;
+  - path/star: probe or dominant Laplacian mode are informative and consistent.
+- Ambiguity is reduced: path/star now show internal-consistent peaks, but these peaks are not aligned to a single universal revival lambda across topologies.
+
 ## Immediate next experiment
-Run a targeted observable refinement for path/star (for example dephasing of edge-occupation variance and/or topology-specific source-aligned mode amplitudes) around revival windows to determine whether the ambiguous slowing signal is an observable-choice artifact or a real topology split.
+Run a finite-size carryover of the same dephasing estimator (`N5`, path/star at feasible `chi`) to test whether the topology-specific peak locations (`path~1.12`, `star~1.30` at `N4`) persist or collapse toward a common scaling trend.
