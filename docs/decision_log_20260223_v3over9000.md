@@ -415,5 +415,55 @@ Interpretation:
   - path/star: probe or dominant Laplacian mode are informative and consistent.
 - Ambiguity is reduced: path/star now show internal-consistent peaks, but these peaks are not aligned to a single universal revival lambda across topologies.
 
+## Sweep V: N5 finite-size carryover (2026-02-24)
+Goal:
+Test whether the N4 topology-specific dephasing peaks persist at larger system size under the same hotspot protocol and estimator.
+
+### V1: N5 path/star carryover (`chi=3`, hotspot=3.0)
+Command:
+`OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 .venv/bin/python scripts/critical_slowing_scan.py --N 5 --topologies path,star --lambdas 'path:0.9,1.0,1.1,1.2,1.3;star:1.1,1.2,1.3,1.4,1.5' --bond-cutoff 3 --hotspot-multiplier 3.0 --t-max 70 --n-times 180 --output-dir outputs/critical_slowing_obsref_N5_pathstar_hotspot3_chi3_20260224`
+
+Readout:
+- `path`:
+  - `tau_dephase_probe` peak at `lambda=1.10` (`~15.25`)
+  - `tau_dephase_mode_dom` near-coincident peak around `lambda=1.00-1.10` (`~17.21` at `1.00`).
+- `star`:
+  - `tau_dephase_probe` peak at `lambda=1.50` (`~8.21`)
+  - `tau_dephase_mode_dom` also peaks at `lambda=1.50` (`~8.21`).
+
+Interpretation:
+- `path` peak location is stable from N4 to N5 (small shift).
+- `star` peak moves upward in this slice (from `~1.30` at N4 to `~1.50` at N5), indicating stronger finite-size dependence.
+
+Artifacts:
+- `outputs/critical_slowing_obsref_N5_pathstar_hotspot3_chi3_20260224/summary.csv`
+- `outputs/critical_slowing_obsref_N5_pathstar_hotspot3_chi3_20260224/tau_dephase_vs_lambda.png`
+- `outputs/critical_slowing_obsref_N5_pathstar_hotspot3_chi3_20260224/report.md`
+
+### V2: N5 cycle control + refinement (`chi=3`, hotspot=3.0)
+Commands:
+- coarse:
+`OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 .venv/bin/python scripts/critical_slowing_scan.py --N 5 --topologies cycle --lambdas 'cycle:0.35,0.45,0.49,0.55,0.65' --bond-cutoff 3 --hotspot-multiplier 3.0 --t-max 70 --n-times 180 --output-dir outputs/critical_slowing_obsref_N5_cycle_hotspot3_chi3_20260224`
+- refined:
+`OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 .venv/bin/python scripts/critical_slowing_scan.py --N 5 --topologies cycle --lambdas 'cycle:0.49,0.53,0.57,0.61,0.65,0.70' --bond-cutoff 3 --hotspot-multiplier 3.0 --t-max 70 --n-times 180 --output-dir outputs/critical_slowing_obsref_N5_cycle_hotspot3_chi3_refine_20260224`
+
+Readout:
+- probe/mode channels remain symmetry-suppressed for cycle (all `NaN` after `--min-scale`).
+- global channel carries cycle slowing signal:
+  - refined peak `tau_dephase_global ~6.26` at `lambda=0.61`.
+
+Interpretation:
+- cycle also shifts upward relative to N4 (`0.49 -> 0.61`) in this tested setting, with smaller peak magnitude.
+- no evidence for a universal topology-independent peak lambda at N5.
+
+Artifacts:
+- `outputs/critical_slowing_obsref_N5_cycle_hotspot3_chi3_20260224/summary.csv`
+- `outputs/critical_slowing_obsref_N5_cycle_hotspot3_chi3_refine_20260224/summary.csv`
+
+N4 vs N5 peak snapshot (same estimator family):
+- `path` (`tau_dephase_probe`): `1.12 -> 1.10`
+- `star` (`tau_dephase_probe`): `1.30 -> 1.50`
+- `cycle` (`tau_dephase_global`): `0.49 -> 0.61`
+
 ## Immediate next experiment
-Run a finite-size carryover of the same dephasing estimator (`N5`, path/star at feasible `chi`) to test whether the topology-specific peak locations (`path~1.12`, `star~1.30` at `N4`) persist or collapse toward a common scaling trend.
+Run a cutoff-upgrade check (`N5`, `chi=4`) on a sparse lambda anchor set around these N5 peaks to determine whether observed peak shifts are true finite-size physics or `chi=3` truncation artifacts.

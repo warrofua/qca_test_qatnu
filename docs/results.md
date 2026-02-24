@@ -413,3 +413,30 @@ Summary:
     - path/star -> probe or dominant-Laplacian mode.
   - The refined analysis removes the earlier false long-tau artifacts from near-zero mode channels.
   - Current N4 evidence favors topology-specific peak locations rather than a single universal lambda across topologies.
+
+## Deep-time critical slowing: N5 finite-size carryover (February 24, 2026)
+- **Path/star carryover run (`N=5`, `chi=3`, hotspot=3.0)**:
+  - `outputs/critical_slowing_obsref_N5_pathstar_hotspot3_chi3_20260224/summary.csv`
+  - command:
+    - `OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 .venv/bin/python scripts/critical_slowing_scan.py --N 5 --topologies path,star --lambdas 'path:0.9,1.0,1.1,1.2,1.3;star:1.1,1.2,1.3,1.4,1.5' --bond-cutoff 3 --hotspot-multiplier 3.0 --t-max 70 --n-times 180 --output-dir outputs/critical_slowing_obsref_N5_pathstar_hotspot3_chi3_20260224`
+  - readout:
+    - `path` peak (`tau_dephase_probe`) at `lambda=1.10` (`~15.25`), close to N4 location.
+    - `star` peak (`tau_dephase_probe`) at `lambda=1.50` (`~8.21`), shifted upward vs N4.
+
+- **Cycle control + refinement (`N=5`, `chi=3`, hotspot=3.0)**:
+  - coarse:
+    - `outputs/critical_slowing_obsref_N5_cycle_hotspot3_chi3_20260224/summary.csv`
+  - refined:
+    - `outputs/critical_slowing_obsref_N5_cycle_hotspot3_chi3_refine_20260224/summary.csv`
+  - readout:
+    - probe/mode channels remain symmetry-suppressed (all `NaN` after `--min-scale`).
+    - global dephasing peak is at `lambda=0.61` (`tau_dephase_global ~6.26`) in the refined scan.
+
+- **N4 -> N5 peak shift summary (same estimator family)**:
+  - `path` (`tau_dephase_probe`): `1.12 -> 1.10` (small shift)
+  - `star` (`tau_dephase_probe`): `1.30 -> 1.50` (upward shift)
+  - `cycle` (`tau_dephase_global`): `0.49 -> 0.61` (upward shift)
+
+- **Interpretation update**:
+  - Topology-specific critical-slowing peaks persist at N5, and at least two topologies (star, cycle) show meaningful finite-size drift in peak lambda.
+  - Under current data, this argues against a single universal revival-locked lambda across topologies at fixed hotspot protocol.
