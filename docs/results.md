@@ -351,3 +351,28 @@ Summary:
 
 - **Recommendation update**:
   - Replace fixed taper-B as the global default with an adaptive high-lambda family search (at least test `gamma_lambda_high` near `0.9-1.0`), because star chi4 data show a real high-lambda crossover not captured by early taper shutoff.
+
+## Frozen-matter scalar screening scan (N4 path/cycle/star, February 24, 2026)
+- **Goal**: test the scalar-sector claim in static frozen-matter mode:
+  - massless Poisson-like response: `Delta Lambda ~ -kappa rho`
+  - screened Yukawa-like response: `(Delta - mu^2)Lambda ~ -kappa rho`
+- **New runner**: `scripts/frozen_screening_scan.py`
+- **Run**:
+  - `outputs/frozen_screening_N4_path_cycle_star_20260224/`
+  - command used:
+    - `.venv/bin/python scripts/frozen_screening_scan.py --N 4 --topologies path,cycle,star --lambdas 0.1,0.2,0.35,0.5,0.7,1.0,1.2,1.4 --bond-cutoff 4 --output-dir outputs/frozen_screening_N4_path_cycle_star_20260224`
+
+- **Key readout** (`frozen_fits.csv`):
+  - `cycle`: massless model fits at machine precision across all tested lambdas, with `mu^2 ~ 0`.
+  - `star`: screened term provides no measurable gain under `mu^2 >= 0` constraint; `mu^2 = 0` selected.
+  - `path`: screened fit returns small positive `mu^2`, but RSS improvements are weak (below acceptance threshold), so massless remains preferred in this first pass.
+
+- **Interpretation**:
+  - No strong evidence yet for a robust screened scalar sector in these N4 frozen-matter conditions.
+  - This does not close the question: docs also call for deep-time dynamical critical-slowing checks near revival.
+- **Artifacts**:
+  - `outputs/frozen_screening_N4_path_cycle_star_20260224/frozen_cases.csv`
+  - `outputs/frozen_screening_N4_path_cycle_star_20260224/frozen_fits.csv`
+  - `outputs/frozen_screening_N4_path_cycle_star_20260224/mu2_vs_lambda.png`
+  - `outputs/frozen_screening_N4_path_cycle_star_20260224/fit_residuals_vs_lambda.png`
+  - `outputs/frozen_screening_N4_path_cycle_star_20260224/report.md`

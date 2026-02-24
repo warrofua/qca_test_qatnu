@@ -288,5 +288,36 @@ Artifacts:
 - `outputs/v3over9000_gamma_taperC_N5_star_chi4_hilambda_20260224/summary.csv`
 - `outputs/v3over9000_gamma_taperC_N5_star_chi4_hilambda_20260224/report.md`
 
+## Sweep S: frozen-matter screening extraction (Poisson vs Yukawa, 2026-02-24)
+Motivation:
+The docs call for a scalar-sector make/break test: whether static Lambda response is unscreened (`Delta Lambda ~ -rho`) or screened (`(Delta - mu^2)Lambda ~ -rho`).
+
+New script:
+- `scripts/frozen_screening_scan.py`
+  - freezes matter via static `z_i in {+1,-1}` assignments,
+  - derives edge frustration `F_ij = (1 - z_i z_j)/2`,
+  - solves bond-only ground states,
+  - measures `Lambda_i` (log or linear proxy),
+  - fits massless vs screened operators per topology and lambda.
+
+Command:
+` .venv/bin/python scripts/frozen_screening_scan.py --N 4 --topologies path,cycle,star --lambdas 0.1,0.2,0.35,0.5,0.7,1.0,1.2,1.4 --bond-cutoff 4 --output-dir outputs/frozen_screening_N4_path_cycle_star_20260224`
+
+Outcome summary:
+- `cycle`: massless fit is exact to machine precision across lambdas; `mu^2 ~ 0`.
+- `star`: screened term does not improve fit under nonnegative `mu^2` constraint; `mu^2=0` selected across tested lambdas.
+- `path`: unconstrained screened fit yields small positive `mu^2` but only marginal RSS gains (below selection threshold), so massless remains preferred in this first pass.
+
+Artifacts:
+- `outputs/frozen_screening_N4_path_cycle_star_20260224/frozen_cases.csv`
+- `outputs/frozen_screening_N4_path_cycle_star_20260224/frozen_fits.csv`
+- `outputs/frozen_screening_N4_path_cycle_star_20260224/mu2_vs_lambda.png`
+- `outputs/frozen_screening_N4_path_cycle_star_20260224/fit_residuals_vs_lambda.png`
+- `outputs/frozen_screening_N4_path_cycle_star_20260224/report.md`
+
+Interpretation:
+- This first frozen-matter scan provides initial evidence against a strong screened (`mu^2>0`) scalar response in these N4 settings.
+- The decisive follow-up is dynamic: test deep-time relaxation/critical slowing near `lambda_rev` to see whether screening behavior changes at/near revival.
+
 ## Immediate next experiment
-Promote the schedule search from fixed B (`low=0.30, high=0.55`) to an adaptive high-lambda family (for example `high in [0.9, 1.0]`, optional taper power > 1), then test star/path transfer on N5 with resume+dedupe enabled. Reserve dense all-topology chi4/chi5 sweeps for upgraded hardware due per-point eigensolve cost.
+Run the deep-time relaxation test (`t >> 1/omega`) around revival windows on N4 path/cycle/star and extract equilibration times vs lambda. This is the direct critical-slowing check linked to the scalar-screening hypothesis.
