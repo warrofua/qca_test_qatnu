@@ -174,3 +174,180 @@
   - `outputs/spin2_correlator_sweep_20260223-robust_N4_pathstar_chi5/spin2_summary.csv`
   - `outputs/spin2_correlator_sweep_20260223-robust_N5_pathstar_chi34/spin2_summary.csv`
   - `outputs/spin2_correlator_cutoff_sensitivity_20260223.csv`
+
+## Spin-2 semantics + N5 chi=5 feasibility (February 23, 2026)
+- **Semantic lock (code-level)**:
+  - Spin-2 metric is now normalized to **power** convention across simulator compute/DB/API/websocket/UI:
+    - `S(k) ~ 1/k^p`, target `p = 2`, slope is always derived as `-p`.
+  - Backward-compatible API payloads expose both:
+    - `measured_power` / `expected_power`
+    - `measured_slope` / `expected_slope`
+- **N5 chi=5 feasibility check**:
+  - `path`: estimated dense Hamiltonian size ≈ `2.98 GiB` (`total_dim=20000`)
+  - `star`: estimated dense Hamiltonian size ≈ `2.98 GiB` (`total_dim=20000`)
+  - `cycle`: estimated dense Hamiltonian size ≈ `74.51 GiB` (`total_dim=100000`) → skipped by preflight guard under `--max-dense-gib 32`
+- **Interpretation**:
+  - Under the current dense `ExactQCA` solver, `N5 cycle chi=5` is not tractable on the present machine and remains high-risk even on 64GB RAM.
+  - The code now emits explicit skipped/error artifacts for infeasible or failed points rather than crashing whole sweeps.
+- **Artifacts**:
+  - Feasibility table: `outputs/spin2_n5_chi5_feasibility_20260223.csv`
+  - Cycle skip run: `outputs/spin2_correlator_sweep_20260223-N5_cycle_chi5_skip/spin2_summary.csv`
+  - Cycle skip details: `outputs/spin2_correlator_sweep_20260223-N5_cycle_chi5_skip/spin2_skipped.csv`
+  - Smoke check for updated runner: `outputs/spin2_correlator_sweep_20260223-smoke_semantics/spin2_summary.csv`
+
+## Mega PDF claim vs evidence matrix (reviewed February 23, 2026)
+- PDF reviewed: `/Users/joshuafarrow/Downloads/mega_document (6).pdf`
+- Scope: claims cross-checked against repo artifacts/logs available in this snapshot.
+
+| Mega PDF claim (paraphrased) | Status vs current findings | Evidence in repo |
+|---|---|---|
+| Locality/causality holds (finite `v_LR`, no-signalling) | **Supported** | `docs/results.md` N4/N5/path/cycle/star SRQID checks show finite `v_LR` and no-signalling at machine precision. |
+| Postulate-1 clock slowdown law is a useful approximate constitutive relation in small-N | **Partially supported** | Baseline N4/N5 runs report revival residuals around `10-15%`; consistent with approximate-not-exact behavior in small systems. |
+| Appendix A critical points for canonical N4/N5 path runs are validated | **Supported** | `docs/results.md` entries for `run_20251116-154356_N4_alpha0.80` and `run_20251116-160216_N5_alpha0.80` match the PDF appendix values. |
+| A broad robust `(lambda, alpha)` window exists (balanced/Minkowski-like regime) | **Partially supported / weakened** | New sweeps show `lambda_c1`/`lambda_revival` shift strongly with hotspot multiplier and with `deltaB`/`kappa`; robustness is conditional on locked modeling choices. |
+| Hardcoded hotspot scaling is not central to conclusions | **Not supported** | Hotspot sensitivity sweeps show material shifts in `lambda_c1` and `lambda_revival`; `3.0x` behaves as a tuning choice, not an invariant. |
+| Spin-2 sector is not yet convincingly recovered | **Supported (core conclusion)** | Old PSD proxy was far from target; new correlator proxy improves topology discrimination but still leaves path/cycle far from target slope `-2` (star is closer, not decisive). |
+| Next progress requires larger topologies and better coarse-grained observables | **Supported** | Current `N5 cycle, chi=5` dense run is infeasible (`~74.5 GiB` estimate), reinforcing need for sparse/iterative methods and improved observables. |
+
+Summary:
+- The mega PDF remains directionally correct on causality, small-N approximate clock slowdown, and the unresolved spin-2 gap.
+- The strongest update since that draft is reduced confidence in robustness claims: phase landmarks are sensitive to phenomenological knobs (`hotspot_multiplier`, `deltaB`, `kappa`), and no-retuning topology transfer currently fails.
+
+## v3over9000 branch kickoff (February 23, 2026)
+- **Goal**: move from parameter retuning to structural tests aligned with full-theory requirements.
+- **New code workspace**: `v3over9000/`
+  - `tensor_spin2.py`: TT-projected tensor spectrum from connected bond covariance.
+  - `alpha_self_energy.py`: susceptibility extraction via self-energy slope (`sigma(0)` vs local `Lambda`).
+  - `correlated_qca.py`: correlated promotion Hamiltonian extension (`gamma_corr`).
+  - `run_reality_experiment.py`: baseline vs correlated side-by-side runner.
+- **Smoke artifacts**:
+  - `outputs/v3over9000_smoke_20260223/`
+  - `outputs/v3over9000_smoke_20260223_N4/`
+  - `outputs/v3over9000_smoke_20260223_N4_refined/`
+- **Quick readout (N4 path refined smoke)**:
+  - baseline `alpha_self_energy ≈ 0.0347`, correlated `≈ 0.0350` with high local fit `R^2` in this setup.
+  - TT spin-2 power remains far from target in these quick checks, so this is scaffolding + instrumentation, not a solved spin-2 result.
+- **Decision log**:
+  - `docs/decision_log_20260223_v3over9000.md`
+
+## v3over9000 correlated-promotion sweeps (N=4, February 23, 2026)
+- **Question**: can structural bond-bond coupling (`gamma_corr`) improve TT spin-2 behavior without collapsing Postulate-1 diagnostics?
+- **Runner**: `v3over9000/sweep_tt_gamma.py`
+
+- **Pass 1 (`gamma >= 0`)**:
+  - Output: `outputs/v3over9000_gamma_sweep_20260223_N4/summary.csv`
+  - Result: positive `gamma_corr` did not help; best rows remained at `gamma_corr=0.0`.
+
+- **Pass 2 (sign scan, `gamma in {-0.1,...,0.1}`)**:
+  - Output: `outputs/v3over9000_gamma_signscan_20260223_N4/summary.csv`
+  - Result: negative `gamma_corr` consistently improved TT residual versus `gamma=0` across path/cycle/star.
+
+- **Pass 3 (deeper negative scan, `gamma in {-0.2,-0.15,-0.1,-0.05,0}`)**:
+  - Output: `outputs/v3over9000_gamma_negdeep_20260223_N4/summary.csv`
+  - Best values at `gamma_corr=-0.2`:
+    - `path`: best residual `1.9682` (gain `~0.0323` vs `gamma=0`)
+    - `cycle`: best residual `1.9643` (gain `~0.0254`)
+    - `star`: best residual `1.9791` (gain `~0.0217`)
+  - Postulate residual qualitative pattern remained similar to previous behavior:
+    - cycle near machine precision,
+    - path moderate residuals,
+    - star high residual at larger `lambda`.
+
+- **Interpretation**:
+  - Correlated promotion sign matters; the tested constructive direction is negative in this implementation.
+  - Improvement is real but still small relative to the gap to target (`|power-2|` remains near `~2`).
+  - Next decisive check is finite-size carryover (`N=5`) under feasible cutoffs.
+
+## v3over9000 finite-size carryover (N=5, chi=3, February 23, 2026)
+- **Run**:
+  - `outputs/v3over9000_gamma_N5_chi3_20260223/summary.csv`
+- **Configuration**:
+  - `N=5`, topologies `path/cycle/star`, `gamma_corr ∈ {-0.2,-0.1,0}`, `lambda ∈ {0.2,0.6,1.0}`, `bond_cutoff=3`.
+- **Best observed by topology**:
+  - `path`: residual `2.0006` (`gamma=0`) -> `1.9687` (`gamma=-0.2`)
+  - `cycle`: `2.0004` -> `1.9797`
+  - `star`: `2.0038` -> `1.9538`
+- **Interpretation**:
+  - The negative-coupling improvement trend persists at larger size in this tested regime.
+  - Absolute gap to target remains large; this is directional progress, not closure.
+  - Postulate residual remains topology-sensitive (cycle low; path moderate; star high at larger `lambda`).
+
+## v3over9000 dense+cutoff follow-up (N=5 path/star, February 23, 2026)
+- **Dense lambda check (`chi=3`)**:
+  - `outputs/v3over9000_gamma_dense_N5_pathstar_chi3_20260223/summary.csv`
+  - `gamma_corr=-0.25` remained best for both topologies on dense grid:
+    - path best residual `1.9565` (vs `2.0006` at `gamma=0`)
+    - star best residual `1.9382` (vs `2.0039`)
+  - Best lambda stayed at `0.2`.
+- **Cutoff carryover (`chi=4`, sparse anchors)**:
+  - `outputs/v3over9000_gamma_N5_pathstar_chi4_20260223/summary.csv`
+  - Negative-coupling improvement persisted at higher cutoff:
+    - path best residual `1.9580` (`gamma=-0.25`)
+    - star best residual `1.9391` (`gamma=-0.25`)
+  - Relative to `gamma=0`, gains remained substantial in both topologies.
+- **Interpretation update**:
+  - The `gamma_corr < 0` directional improvement is now stable across:
+    - `N=4 -> N=5`,
+    - sparse and dense lambda grids,
+    - `chi=3 -> 4` for path/star.
+  - Remaining issue: star still carries high Postulate residual at larger lambda; spin-2 gains are concentrated in low-lambda regime.
+
+## v3over9000 lambda-dependent gamma schedule (N=5 path/star, chi=3 dense)
+- **What changed**:
+  - `v3over9000/sweep_tt_gamma.py` now supports `--gamma-mode taper_high` with lambda window controls.
+  - Summary now includes guardrails: `p90_postulate_residual`, `frac_postulate_gt_0_2`, effective gamma stats.
+
+- **Taper A** (`low=0.35`, `high=0.70`):
+  - `outputs/v3over9000_gamma_taper_N5_pathstar_chi3_20260223/summary.csv`
+  - Preserved low-lambda TT best values; improved star mean/max postulate for `gamma=-0.2`.
+
+- **Taper B (best compromise so far)** (`low=0.30`, `high=0.55`):
+  - `outputs/v3over9000_gamma_taper2_N5_pathstar_chi3_20260223/summary.csv`
+  - `gamma=-0.25` retained best TT residual for star (`1.9382`) while reducing star mean postulate from constant-run `~0.470` to `~0.406` (near baseline `~0.406`).
+  - Path remained effectively unchanged and still improved vs `gamma=0` at low lambda.
+
+- **Current recommendation**:
+  - Use `gamma_corr=-0.25` with taper B (`low=0.30`, `high=0.55`) as the working setting for next topology transfer checks.
+
+## v3over9000 chi=4 execution reality + high-lambda crossover (February 24, 2026)
+- **Runtime bottleneck diagnosis (N5/star/chi4 single point)**:
+  - `outputs/v3over9000_perf_probe_star_N5_chi4_20260224/`
+  - Measured per-point wall-time `~152 s` at reduced sampling (`k_modes=8`, `k_angles=12`, `ramsey_points=48`).
+  - Dominant stages are dense eigensolves:
+    - ground-state diagonalization `~75 s`
+    - hotspot evolution (second eigensolve path) `~76 s`
+  - Tensor and Ramsey bookkeeping are secondary at this size.
+
+- **Runner hardening updates** (`v3over9000/sweep_tt_gamma.py`):
+  - Added `--resume` + `--checkpoint-every` for interruption-safe long sweeps.
+  - Added effective-gamma deduplication, so taper modes avoid recomputing identical high-lambda `gamma_eff=0` points.
+  - Added faster probe-frequency path by reusing pulse/eigenbasis across time samples.
+  - Validation artifacts:
+    - `outputs/v3over9000_resume_smoke_20260224/`
+    - `outputs/v3over9000_dedupe_smoke_20260224/`
+
+- **Star chi4 micro-grid (taper B, `lambda={0.2,0.8}`)**:
+  - `outputs/v3over9000_gamma_taper2_N5_star_chi4_micro_20260224/points.csv`
+  - Low lambda keeps the TT gain:
+    - `lambda=0.2`, `gamma=-0.25`: `spin2_residual=1.9398`, `postulate_residual=0.0088`
+    - `lambda=0.2`, `gamma=0.0`: `spin2_residual=2.0038`, `postulate_residual=0.0042`
+  - High lambda under taper-B collapses to `gamma_eff=0` baseline:
+    - `lambda=0.8`: `spin2_residual=2.0426`, `postulate_residual=0.4094` for all base gammas.
+
+- **High-lambda constant controls (star chi4)**:
+  - `lambda=0.8`: `outputs/v3over9000_gamma_constant_N5_star_chi4_lambda08_20260224/points.csv`
+  - `lambda=0.9`: `outputs/v3over9000_gamma_constant_N5_star_chi4_lambda09_20260224/points.csv`
+  - `lambda=1.0`: `outputs/v3over9000_gamma_constant_N5_star_chi4_lambda10_20260224/points.csv`
+  - Key crossover:
+    - At `0.8-0.9`, negative gamma improves postulate and TT vs `gamma=0`.
+    - At `1.0`, `gamma=0` gives the best postulate residual in this slice.
+  - This indicates early taper-to-zero (`high=0.55`) is too aggressive for chi4 star high-lambda behavior.
+
+- **Delayed taper candidate C (`low=0.30`, `high=1.00`, `gamma=-0.25`)**:
+  - `outputs/v3over9000_gamma_taperC_N5_star_chi4_hilambda_20260224/points.csv`
+  - `lambda=0.8`: `gamma_eff=-0.071`, `postulate_residual=0.1998` (best among tested schedules at this lambda).
+  - `lambda=0.9`: `gamma_eff=-0.036`, near baseline postulate.
+  - `lambda=1.0`: `gamma_eff=0`, baseline recovery.
+
+- **Recommendation update**:
+  - Replace fixed taper-B as the global default with an adaptive high-lambda family search (at least test `gamma_lambda_high` near `0.9-1.0`), because star chi4 data show a real high-lambda crossover not captured by early taper shutoff.
