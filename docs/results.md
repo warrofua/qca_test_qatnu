@@ -463,3 +463,50 @@ Summary:
 - **Interpretation update**:
   - Peak locations are cutoff-sensitive in `path/star` at N5.
   - `cycle` at `N5, chi=4` is currently throughput-limited on this hardware for interactive experimentation.
+
+## Sparse/iterative backend for deep-time scans (February 24, 2026)
+- **Code changes**:
+  - `core_qca.py`:
+    - added optional sparse Hamiltonian mode (`hamiltonian_mode='sparse'`)
+    - added iterative ground-state solve (`eigsh`)
+    - added Krylov time evolution (`expm_multiply`) via `evolve_state`/`evolve_states`
+    - dense mode remains default
+  - `scripts/critical_slowing_scan.py`:
+    - new backend controls:
+      - `--solver-backend {dense,iterative,auto}`
+      - `--auto-dense-threshold`
+      - `--iterative-tol`, `--iterative-maxiter`
+    - output rows now include backend metadata (`backend`, `hamiltonian_mode`)
+
+- **Backend parity checks**:
+  - small smoke (`N3 path`): dense vs iterative max metric diff `~1.64e-13`
+  - high-dim check (`N5 chi4`, anchors `path:1.0`, `star:1.6`): max metric diff `~5.90e-11`
+  - artifacts:
+    - `outputs/critical_slowing_backendcheck_dense_20260224/summary.csv`
+    - `outputs/critical_slowing_backendcheck_iterative_20260224/summary.csv`
+    - `outputs/critical_slowing_backendcheck_N5_chi4_dense_20260224/summary.csv`
+    - `outputs/critical_slowing_backendcheck_N5_chi4_iter_20260224/summary.csv`
+
+## N5 cutoff convergence matrix with iterative backend (February 24, 2026)
+- **Runs**:
+  - path/star anchors (`lambda path={1.0,1.1}`, `star={1.5,1.6}`):
+    - `outputs/critical_slowing_convmat_N5_chi3_iter_20260224/summary.csv`
+    - `outputs/critical_slowing_convmat_N5_chi4_iter_20260224/summary.csv`
+    - `outputs/critical_slowing_convmat_N5_chi5_iter_20260224/summary.csv`
+  - cycle triplets (`lambda cycle={0.55,0.61,0.65}`):
+    - `outputs/critical_slowing_convmat_N5_cycle_chi3_iter_triplet_20260224/summary.csv`
+    - `outputs/critical_slowing_convmat_N5_cycle_chi4_iter_triplet_20260224/summary.csv`
+    - `outputs/critical_slowing_convmat_N5_cycle_chi5_iter_triplet_20260224/summary.csv`
+  - consolidated:
+    - `outputs/critical_slowing_convmat_N5_iterative_20260224/peaks_by_chi.csv`
+    - `outputs/critical_slowing_convmat_N5_iterative_20260224/report.md`
+
+- **Peak summary (current anchor matrix)**:
+  - `path` (`tau_dephase_probe`): peak at `lambda=1.0` for `chi=3,4,5`
+  - `star` (`tau_dephase_probe`): peak at `lambda=1.5` for `chi=3`, shifts to `1.6` for `chi=4,5`
+  - `cycle` (`tau_dephase_global`): peak at `lambda=0.61` for `chi=3,4,5`
+
+- **Interpretation update**:
+  - The previous cycle-chi4 throughput blocker is resolved by sparse/iterative evolution.
+  - On this matrix, path and cycle peak locations look cutoff-stable; star remains cutoff-sensitive.
+  - The primary unresolved convergence question is now the star peak window, not solver feasibility.

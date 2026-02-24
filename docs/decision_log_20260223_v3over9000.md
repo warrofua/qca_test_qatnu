@@ -510,5 +510,60 @@ Interpretation:
 - On current hardware, `N5 cycle chi=4` deep-time anchors are not practical for iterative scans.
 - This point should be revisited on upgraded hardware (or with a sparse/iterative eigensolver path).
 
+## Sweep X: sparse/iterative backend + N5 cutoff convergence matrix (2026-02-24)
+Goal:
+Implement a sparse/iterative solver path and re-run cutoff checks (`chi=3,4,5`) without dense-eigensolver bottlenecks.
+
+Code updates:
+- `core_qca.py`
+  - added optional `hamiltonian_mode` (`dense` default, `sparse` optional).
+  - added sparse Hamiltonian assembly (`csr`) path.
+  - added iterative ground-state solver via `eigsh` (`get_ground_state(method='iterative')`).
+  - added Krylov time evolution via `expm_multiply` (`evolve_state`/`evolve_states` with `method='krylov'`).
+  - kept dense behavior as default for compatibility.
+- `scripts/critical_slowing_scan.py`
+  - added backend controls:
+    - `--solver-backend {dense,iterative,auto}`
+    - `--auto-dense-threshold`
+    - `--iterative-tol`, `--iterative-maxiter`
+  - scan rows now include `backend` and `hamiltonian_mode`.
+
+Numerical parity checks:
+- small smoke (`N3 path`) dense vs iterative:
+  - max metric absolute diff `~1.64e-13`.
+- high-dim check (`N5 chi4`, anchors `path:1.0`, `star:1.6`) dense vs iterative:
+  - max metric absolute diff `~5.90e-11`.
+
+### X1: N5 convergence matrix (iterative backend)
+Shared protocol:
+- hotspot multiplier `3.0`
+- `t_max=60`, `n_times=100`
+- cycle interpreted with global channel (`tau_dephase_global`) due symmetry suppression in probe/mode channels.
+
+Path/star anchors:
+- chi3: `outputs/critical_slowing_convmat_N5_chi3_iter_20260224/summary.csv`
+- chi4: `outputs/critical_slowing_convmat_N5_chi4_iter_20260224/summary.csv`
+- chi5: `outputs/critical_slowing_convmat_N5_chi5_iter_20260224/summary.csv`
+- lambdas: `path={1.0,1.1}`, `star={1.5,1.6}`
+
+Cycle triplets:
+- chi3: `outputs/critical_slowing_convmat_N5_cycle_chi3_iter_triplet_20260224/summary.csv`
+- chi4: `outputs/critical_slowing_convmat_N5_cycle_chi4_iter_triplet_20260224/summary.csv`
+- chi5: `outputs/critical_slowing_convmat_N5_cycle_chi5_iter_triplet_20260224/summary.csv`
+- lambdas: `cycle={0.55,0.61,0.65}`
+
+Consolidated artifact:
+- `outputs/critical_slowing_convmat_N5_iterative_20260224/peaks_by_chi.csv`
+
+Peak summary (current anchor grid):
+- `path` (`tau_dephase_probe`): peak at `lambda=1.0` for `chi=3,4,5` (tau increases with chi).
+- `star` (`tau_dephase_probe`): peak shifts to `lambda=1.6` for `chi>=4` (chi3 peak at `1.5`).
+- `cycle` (`tau_dephase_global`): peak stable at `lambda=0.61` for `chi=3,4,5`.
+
+Interpretation:
+- The sparse/iterative path removes the prior cycle chi4/chi5 throughput blocker and enables real cutoff scans.
+- On this anchor matrix, path and cycle peak locations look cutoff-stable, while star still shows cutoff sensitivity.
+- Therefore, the main unresolved cutoff issue is now localized to star-window resolution (not a global solver infeasibility).
+
 ## Immediate next experiment
-On upgraded hardware, run a minimal `N5 cycle chi=4` anchor pair (`lambda~0.55,0.65`) plus one `path/star` guard anchor each, then decide whether to lock any topology-specific scaling law or move to sparse-eigensolver implementation.
+Run a star-focused dense anchor refinement (`N5`, `chi=3,4,5`, `lambda=1.50,1.55,1.60,1.65,1.70`) with the iterative backend, plus one path guard (`lambda=1.0`) and cycle guard (`lambda=0.61`) per chi, to determine whether star converges to a stable peak or continues drifting with cutoff.

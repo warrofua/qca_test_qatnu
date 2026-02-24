@@ -65,6 +65,19 @@ def _parse_topologies(raw: str) -> List[str]:
     return vals
 
 
+def _select_backend(
+    requested: str,
+    total_dim: int,
+    auto_dense_threshold: int,
+) -> str:
+    mode = (requested or "dense").lower()
+    if mode not in {"dense", "iterative", "auto"}:
+        raise ValueError(f"Unsupported solver backend '{requested}'")
+    if mode == "auto":
+        return "iterative" if int(total_dim) >= int(auto_dense_threshold) else "dense"
+    return mode
+
+
 def _incident_edges(n: int, edges: Sequence[Tuple[int, int]]) -> List[List[int]]:
     out: List[List[int]] = [[] for _ in range(n)]
     for edge_idx, (u, v) in enumerate(edges):
@@ -157,6 +170,7 @@ def _build_qca(
     delta_b: float,
     kappa: float,
     k0: float,
+    hamiltonian_mode: str,
 ) -> ExactQCA:
     cfg = {
         "omega": 1.0,
@@ -171,7 +185,13 @@ def _build_qca(
         "probeOut": 0,
         "probeIn": 1 if n > 1 else 0,
     }
-    return ExactQCA(N=n, config=cfg, bond_cutoff=int(bond_cutoff), edges=list(edges))
+    return ExactQCA(
+        N=n,
+        config=cfg,
+        bond_cutoff=int(bond_cutoff),
+        edges=list(edges),
+        hamiltonian_mode=hamiltonian_mode,
+    )
 
 
 def _lambda_timeseries(
@@ -179,17 +199,12 @@ def _lambda_timeseries(
     psi0: np.ndarray,
     times: np.ndarray,
     proxy: str,
+    evolution_method: str,
 ) -> np.ndarray:
     """
     Return Lambda_i(t) as array shape [N, T].
     """
-    eig = qca_hot.diagonalize()
-    v = eig["eigenvectors"]
-    e = eig["eigenvalues"]
-
-    coeff0 = v.T @ psi0
-    phases = np.exp(-1j * np.outer(e, times))
-    states = v @ (coeff0[:, None] * phases)  # [dim, T]
+    states = qca_hot.evolve_states(psi0, times, method=evolution_method)  # [dim, T]
     probs = np.abs(states) ** 2
 
     t_count = len(times)
@@ -400,6 +415,10 @@ def _write_report(out_dir: Path, args: argparse.Namespace, summary: pd.DataFrame
     lines.append(f"- rel_tol: {args.rel_tol}")
     lines.append(f"- sustain_points: {args.sustain_points}")
     lines.append(f"- min_scale: {args.min_scale}")
+    lines.append(f"- solver_backend: {args.solver_backend}")
+    lines.append(f"- auto_dense_threshold: {args.auto_dense_threshold}")
+    lines.append(f"- iterative_tol: {args.iterative_tol}")
+    lines.append(f"- iterative_maxiter: {args.iterative_maxiter}")
     lines.append("")
     lines.append("## Summary")
     lines.append("")
@@ -432,8 +451,22 @@ def run(args: argparse.Namespace) -> Path:
 
     for topo_name in topologies:
         topo = get_topology(topo_name, int(args.N))
+        edge_count = len(topo.edges)
+        topo_dim = int((2 ** int(args.N)) * ((int(args.bond_cutoff) ** edge_count) if edge_count > 0 else 1))
+        backend = _select_backend(
+            requested=str(args.solver_backend),
+            total_dim=topo_dim,
+            auto_dense_threshold=int(args.auto_dense_threshold),
+        )
+        hamiltonian_mode = "sparse" if backend == "iterative" else "dense"
+        ground_method = "iterative" if backend == "iterative" else "dense"
+        evolution_method = "krylov" if backend == "iterative" else "dense"
+        maxiter = None if int(args.iterative_maxiter) <= 0 else int(args.iterative_maxiter)
         lam_list = lambdas_by_topo[topo_name]
-        print(f"Topology={topo_name} lambdas={lam_list}", flush=True)
+        print(
+            f"Topology={topo_name} dim={topo_dim} backend={backend} lambdas={lam_list}",
+            flush=True,
+        )
         for lam in lam_list:
             qca_nom = _build_qca(
                 n=int(args.N),
@@ -443,6 +476,7 @@ def run(args: argparse.Namespace) -> Path:
                 delta_b=float(args.deltaB),
                 kappa=float(args.kappa),
                 k0=float(args.k0),
+                hamiltonian_mode=hamiltonian_mode,
             )
             qca_hot = _build_qca(
                 n=int(args.N),
@@ -452,14 +486,20 @@ def run(args: argparse.Namespace) -> Path:
                 delta_b=float(args.deltaB),
                 kappa=float(args.kappa),
                 k0=float(args.k0),
+                hamiltonian_mode=hamiltonian_mode,
             )
 
-            psi0 = qca_nom.get_ground_state()
+            psi0 = qca_nom.get_ground_state(
+                method=ground_method,
+                tol=float(args.iterative_tol),
+                maxiter=maxiter,
+            )
             lam_site_t = _lambda_timeseries(
                 qca_hot=qca_hot,
                 psi0=psi0,
                 times=times,
                 proxy=args.lambda_proxy,
+                evolution_method=evolution_method,
             )
             global_lam = np.mean(lam_site_t, axis=0)
             probe_out, probe_in = topo.probes
@@ -552,6 +592,8 @@ def run(args: argparse.Namespace) -> Path:
             rows.append(
                 {
                     "topology": topo_name,
+                    "backend": backend,
+                    "hamiltonian_mode": hamiltonian_mode,
                     "lambda": float(lam),
                     "tau_eq_global": float(tau_g),
                     "tau_eq_probe": float(tau_p),
@@ -595,7 +637,7 @@ def run(args: argparse.Namespace) -> Path:
                 }
             )
             print(
-                f"  lambda={lam:.3f} tau_eq_probe={tau_p:.3f} tau_eq_global={tau_g:.3f} "
+                f"  lambda={lam:.3f} backend={backend} tau_eq_probe={tau_p:.3f} tau_eq_global={tau_g:.3f} "
                 f"tau_dephase_probe={tau_dephase_p:.3f} tau_dephase_mode_dom={tau_dephase_md:.3f} "
                 f"tail_std_probe={std_p:.3e}",
                 flush=True,
@@ -605,6 +647,7 @@ def run(args: argparse.Namespace) -> Path:
                 sample_rows.append(
                     {
                         "topology": topo_name,
+                        "backend": backend,
                         "lambda": float(lam),
                         "times": times.tolist(),
                         "probe_gap": probe_gap.tolist(),
@@ -665,6 +708,26 @@ def parse_args() -> argparse.Namespace:
         help="Suppress tau estimates when observable amplitude is below this scale.",
     )
     p.add_argument("--max-sample-plots", type=int, default=6)
+    p.add_argument(
+        "--solver-backend",
+        type=str,
+        default="dense",
+        choices=["dense", "iterative", "auto"],
+        help="dense: full diagonalization; iterative: sparse ground + Krylov evolution",
+    )
+    p.add_argument(
+        "--auto-dense-threshold",
+        type=int,
+        default=12000,
+        help="When solver-backend=auto, dims >= threshold use iterative backend.",
+    )
+    p.add_argument("--iterative-tol", type=float, default=1e-9)
+    p.add_argument(
+        "--iterative-maxiter",
+        type=int,
+        default=0,
+        help="0 means scipy default maxiter.",
+    )
     p.add_argument("--output-dir", type=str, default="")
     return p.parse_args()
 

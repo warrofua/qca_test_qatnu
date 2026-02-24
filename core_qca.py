@@ -3,10 +3,12 @@ Core exact-diagonalization utilities for QATNU/SRQID simulations.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 from scipy.linalg import eigh
+from scipy.sparse import coo_matrix, csr_matrix, issparse
+from scipy.sparse.linalg import eigsh, expm_multiply
 
 
 class Utils:
@@ -47,11 +49,15 @@ class ExactQCA:
         config: Dict,
         bond_cutoff: int = 4,
         edges: Optional[List[Tuple[int, int]]] = None,
+        hamiltonian_mode: str = "dense",
     ):
         self.N = N
         self.config = config
         self.bond_cutoff = bond_cutoff
         self.edges = edges if edges is not None else [(i, i + 1) for i in range(max(N - 1, 0))]
+        self.hamiltonian_mode = (hamiltonian_mode or "dense").lower()
+        if self.hamiltonian_mode not in {"dense", "sparse"}:
+            raise ValueError(f"Unsupported hamiltonian_mode '{hamiltonian_mode}'")
         self.edge_count = len(self.edges)
 
         self.matter_dim = 2**N
@@ -72,7 +78,7 @@ class ExactQCA:
             self.incident_edges[u].append(edge_idx)
             self.incident_edges[v].append(edge_idx)
 
-        self.H = self._build_hamiltonian()
+        self.H = self._build_hamiltonian(mode=self.hamiltonian_mode)
         self._eig = None
 
     @staticmethod
@@ -97,48 +103,76 @@ class ExactQCA:
             )
         return matter_state * self.bond_dim + bond_index
 
-    def _build_hamiltonian(self) -> np.ndarray:
-        H = np.zeros((self.total_dim, self.total_dim), dtype=np.float64)
-
+    def _hamiltonian_entries(self) -> Iterable[Tuple[int, int, float]]:
         for idx in range(self.total_dim):
             matter_state = idx // self.bond_dim
             bond_config = self.decode_bond_config(idx % self.bond_dim)
             Z_vals = self.Z_lookup[matter_state]
+            diag_val = 0.0
 
             for i in range(self.N):
                 flipped = matter_state ^ (1 << i)
                 j = self.state_index(flipped, bond_config)
-                H[idx, j] += self.config["omega"] / 2.0
+                yield idx, j, float(self.config["omega"]) / 2.0
 
-            for edge_idx, (i, j) in enumerate(self.edges):
-                Zi, Zj = Z_vals[i], Z_vals[j]
+            for edge_idx, (site_i, site_j) in enumerate(self.edges):
+                Zi, Zj = Z_vals[site_i], Z_vals[site_j]
 
-                H[idx, idx] += self.config["J0"] * Zi * Zj
+                diag_val += float(self.config["J0"]) * float(Zi * Zj)
                 if self.edge_count > 0:
-                    H[idx, idx] += self.config["deltaB"] * bond_config[edge_idx]
+                    diag_val += float(self.config["deltaB"]) * float(bond_config[edge_idx])
 
-                d_i = self._calculate_degree(i, bond_config)
-                d_j = self._calculate_degree(j, bond_config)
-                penalty = (d_i - self.config["k0"]) ** 2 + (d_j - self.config["k0"]) ** 2
-                H[idx, idx] += self.config["kappa"] * penalty
+                d_i = self._calculate_degree(site_i, bond_config)
+                d_j = self._calculate_degree(site_j, bond_config)
+                k0 = float(self.config["k0"])
+                penalty = (float(d_i) - k0) ** 2 + (float(d_j) - k0) ** 2
+                diag_val += float(self.config["kappa"]) * penalty
 
                 F = 0.5 * (1.0 - Zi * Zj)
+                lam_f = float(self.config["lambda"]) * float(F)
 
                 if self.edge_count > 0:
                     if bond_config[edge_idx] < self.bond_cutoff - 1:
                         new_config = bond_config.copy()
                         new_config[edge_idx] += 1
                         jdx = self.state_index(matter_state, new_config)
-                        H[idx, jdx] += self.config["lambda"] * F
+                        yield idx, jdx, lam_f
 
                     if bond_config[edge_idx] > 0:
                         new_config = bond_config.copy()
                         new_config[edge_idx] -= 1
                         jdx = self.state_index(matter_state, new_config)
-                        H[idx, jdx] += self.config["lambda"] * F
+                        yield idx, jdx, lam_f
 
-        H = (H + H.T) * 0.5
-        return H
+            yield idx, idx, diag_val
+
+    def _build_hamiltonian(self, mode: str = "dense"):
+        mode = (mode or "dense").lower()
+        if mode == "dense":
+            H = np.zeros((self.total_dim, self.total_dim), dtype=np.float64)
+            for row, col, value in self._hamiltonian_entries():
+                H[row, col] += value
+            H = (H + H.T) * 0.5
+            return H
+
+        if mode == "sparse":
+            rows: List[int] = []
+            cols: List[int] = []
+            data: List[float] = []
+            for row, col, value in self._hamiltonian_entries():
+                rows.append(row)
+                cols.append(col)
+                data.append(value)
+
+            H = coo_matrix(
+                (np.asarray(data, dtype=np.float64), (np.asarray(rows), np.asarray(cols))),
+                shape=(self.total_dim, self.total_dim),
+            ).tocsr()
+            H = (H + H.T) * 0.5
+            H.sum_duplicates()
+            return H.tocsr()
+
+        raise ValueError(f"Unsupported hamiltonian build mode '{mode}'")
 
     def _calculate_degree(self, site: int, bond_config: List[int]) -> int:
         degree = 0
@@ -149,12 +183,38 @@ class ExactQCA:
 
     def diagonalize(self):
         if self._eig is None:
-            eigenvalues, eigenvectors = eigh(self.H, overwrite_a=True)
+            if issparse(self.H):
+                dense_h = self.H.toarray()
+                eigenvalues, eigenvectors = eigh(dense_h, overwrite_a=True)
+            else:
+                eigenvalues, eigenvectors = eigh(self.H, overwrite_a=True)
             self._eig = {"eigenvectors": eigenvectors, "eigenvalues": eigenvalues}
         return self._eig
 
-    def get_ground_state(self) -> np.ndarray:
-        return self.diagonalize()["eigenvectors"][:, 0].astype(complex)
+    def get_ground_state(
+        self,
+        method: str = "auto",
+        tol: float = 1e-9,
+        maxiter: Optional[int] = None,
+    ) -> np.ndarray:
+        mode = (method or "auto").lower()
+        if mode not in {"auto", "dense", "iterative", "krylov"}:
+            raise ValueError(f"Unsupported ground-state method '{method}'")
+
+        if mode == "auto":
+            mode = "iterative" if issparse(self.H) else "dense"
+
+        if mode == "dense":
+            return self.diagonalize()["eigenvectors"][:, 0].astype(np.complex128)
+
+        op = self.H if issparse(self.H) else csr_matrix(self.H)
+        evals, evecs = eigsh(op, k=1, which="SA", tol=float(tol), maxiter=maxiter)
+        ground = evecs[:, int(np.argmin(evals))].astype(np.complex128)
+        # Fix global phase to make runs deterministic.
+        anchor = int(np.argmax(np.abs(ground)))
+        if np.abs(ground[anchor]) > 0.0:
+            ground *= np.exp(-1j * np.angle(ground[anchor]))
+        return ground
 
     def apply_pi2_pulse(self, state: np.ndarray, site: int) -> np.ndarray:
         new_state = np.zeros_like(state, dtype=complex)
@@ -182,15 +242,84 @@ class ExactQCA:
 
         return new_state
 
-    def evolve_state(self, state: np.ndarray, t: float) -> np.ndarray:
-        eig = self.diagonalize()
-        eigenvectors = eig["eigenvectors"]
-        eigenvalues = eig["eigenvalues"]
+    def evolve_state(self, state: np.ndarray, t: float, method: str = "auto") -> np.ndarray:
+        mode = (method or "auto").lower()
+        if mode not in {"auto", "dense", "iterative", "krylov"}:
+            raise ValueError(f"Unsupported evolution method '{method}'")
+        if mode == "auto":
+            mode = "krylov" if issparse(self.H) else "dense"
 
-        coeffs = eigenvectors.T @ state
-        exp_coeffs = coeffs * np.exp(-1j * eigenvalues * t)
+        psi = np.asarray(state, dtype=np.complex128)
+        if mode == "dense":
+            eig = self.diagonalize()
+            eigenvectors = eig["eigenvectors"]
+            eigenvalues = eig["eigenvalues"]
 
-        return eigenvectors @ exp_coeffs
+            coeffs = eigenvectors.T @ psi
+            exp_coeffs = coeffs * np.exp(-1j * eigenvalues * float(t))
+            return eigenvectors @ exp_coeffs
+
+        op = self.H if issparse(self.H) else csr_matrix(self.H)
+        return np.asarray(expm_multiply((-1j * float(t)) * op, psi), dtype=np.complex128)
+
+    def evolve_states(
+        self,
+        state: np.ndarray,
+        times: np.ndarray,
+        method: str = "auto",
+    ) -> np.ndarray:
+        """
+        Return matrix with shape [dim, T].
+        """
+        t_arr = np.asarray(times, dtype=float)
+        if t_arr.ndim != 1:
+            raise ValueError("times must be a 1D array")
+        if t_arr.size == 0:
+            return np.zeros((self.total_dim, 0), dtype=np.complex128)
+
+        mode = (method or "auto").lower()
+        if mode not in {"auto", "dense", "iterative", "krylov"}:
+            raise ValueError(f"Unsupported evolution method '{method}'")
+        if mode == "auto":
+            mode = "krylov" if issparse(self.H) else "dense"
+
+        psi = np.asarray(state, dtype=np.complex128)
+        if mode == "dense":
+            eig = self.diagonalize()
+            eigenvectors = eig["eigenvectors"]
+            eigenvalues = eig["eigenvalues"]
+            coeffs = eigenvectors.T @ psi
+            phases = np.exp(-1j * np.outer(eigenvalues, t_arr))
+            return eigenvectors @ (coeffs[:, None] * phases)
+
+        op = self.H if issparse(self.H) else csr_matrix(self.H)
+        if t_arr.size == 1:
+            single = np.asarray(expm_multiply((-1j * float(t_arr[0])) * op, psi), dtype=np.complex128)
+            return single[:, None]
+
+        dts = np.diff(t_arr)
+        dt0 = float(dts[0])
+        uniform = np.allclose(dts, dt0, rtol=0.0, atol=1e-12 * max(1.0, abs(dt0)))
+        if uniform:
+            states_t = expm_multiply(
+                -1j * op,
+                psi,
+                start=float(t_arr[0]),
+                stop=float(t_arr[-1]),
+                num=int(t_arr.size),
+                endpoint=True,
+            )
+            states_t = np.asarray(states_t, dtype=np.complex128)
+            if states_t.ndim == 1:
+                states_t = states_t[None, :]
+        else:
+            states_t = np.vstack(
+                [
+                    np.asarray(expm_multiply((-1j * float(t)) * op, psi), dtype=np.complex128)
+                    for t in t_arr
+                ]
+            )
+        return states_t.T
 
     def measure_Z(self, state: np.ndarray, site: int) -> float:
         probabilities = np.abs(state) ** 2
