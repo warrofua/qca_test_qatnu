@@ -319,5 +319,56 @@ Interpretation:
 - This first frozen-matter scan provides initial evidence against a strong screened (`mu^2>0`) scalar response in these N4 settings.
 - The decisive follow-up is dynamic: test deep-time relaxation/critical slowing near `lambda_rev` to see whether screening behavior changes at/near revival.
 
+## Sweep T: deep-time critical-slowing scan (2026-02-24)
+Motivation:
+Follow up the frozen-matter static check with the dynamic test suggested in Appendix-D:
+measure whether bond-sector relaxation/dephasing time peaks near revival windows.
+
+New script:
+- `scripts/critical_slowing_scan.py`
+  - protocol: ground state of nominal `H(lambda)` -> quench to hotspot `H(lambda * hotspot_multiplier)` -> deep-time evolution
+  - observables:
+    - global `Lambda(t)` mean
+    - probe-gap `Lambda_in(t) - Lambda_out(t)`
+  - metrics:
+    - strict equilibration time (`tau_eq`) via sustained tail-band criterion
+    - dephasing time (`tau_dephase`) via running-average convergence (robust for closed finite systems)
+
+### T1: hotspot multiplier 1.5 (dense near revival bands)
+Command:
+`OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 .venv/bin/python scripts/critical_slowing_scan.py --N 4 --topologies path,cycle,star --lambdas 'path:0.8,0.9,1.0,1.1,1.2,1.3;cycle:0.35,0.45,0.5,0.55,0.65;star:1.1,1.2,1.3,1.4,1.5' --bond-cutoff 4 --hotspot-multiplier 1.5 --t-max 60 --n-times 140 --output-dir outputs/critical_slowing_N4_dense_revival_20260224`
+
+Readout:
+- strict `tau_eq` is mostly undefined (persistent oscillations), consistent with closed-system dynamics.
+- dephasing times (`tau_dephase_probe`) are finite and topology-dependent:
+  - `path`: max `~10.79` at `lambda=0.9`
+  - `star`: max `~11.65` at `lambda=1.1`
+  - `cycle`: probe-gap is nearly symmetry-suppressed; global metric is more informative.
+
+Artifacts:
+- `outputs/critical_slowing_N4_dense_revival_20260224/summary.csv`
+- `outputs/critical_slowing_N4_dense_revival_20260224/tau_eq_probe_vs_lambda.png`
+- `outputs/critical_slowing_N4_dense_revival_20260224/report.md`
+
+### T2: hotspot multiplier 3.0 (historical-control alignment)
+Command:
+`OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 .venv/bin/python scripts/critical_slowing_scan.py --N 4 --topologies path,cycle,star --lambdas 'path:0.8,1.03,1.2;cycle:0.35,0.49,0.65;star:1.1,1.3,1.5' --bond-cutoff 4 --hotspot-multiplier 3.0 --t-max 60 --n-times 140 --output-dir outputs/critical_slowing_N4_revival_hotspot3_20260224`
+
+Readout:
+- clear cycle signal near revival:
+  - `cycle`: `tau_dephase_probe ~31.08` at `lambda=0.49` (revival-adjacent), then drops strongly by `lambda=0.65`.
+- `path` and `star` do not show a clean single revival-centered peak in this coarse slice:
+  - `path`: max at `lambda=1.2`
+  - `star`: increases toward `lambda=1.5` in tested points.
+
+Interpretation:
+- The critical-slowing picture is partially supported: strong in `cycle` under hotspot-3 control, ambiguous in `path/star` with current observable/protocol.
+- This suggests topology-sensitive slowing behavior, not a universal one-curve phenomenon yet.
+
+Artifacts:
+- `outputs/critical_slowing_N4_revival_hotspot3_20260224/summary.csv`
+- `outputs/critical_slowing_N4_revival_hotspot3_20260224/tau_eq_probe_vs_lambda.png`
+- `outputs/critical_slowing_N4_revival_hotspot3_20260224/report.md`
+
 ## Immediate next experiment
-Run the deep-time relaxation test (`t >> 1/omega`) around revival windows on N4 path/cycle/star and extract equilibration times vs lambda. This is the direct critical-slowing check linked to the scalar-screening hypothesis.
+Run a targeted observable refinement for path/star (for example dephasing of edge-occupation variance and/or topology-specific source-aligned mode amplitudes) around revival windows to determine whether the ambiguous slowing signal is an observable-choice artifact or a real topology split.
