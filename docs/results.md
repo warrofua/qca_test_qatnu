@@ -510,3 +510,29 @@ Summary:
   - The previous cycle-chi4 throughput blocker is resolved by sparse/iterative evolution.
   - On this matrix, path and cycle peak locations look cutoff-stable; star remains cutoff-sensitive.
   - The primary unresolved convergence question is now the star peak window, not solver feasibility.
+
+## N5 star-window refinement across chi (iterative backend, February 24, 2026)
+- **Refined star runs**:
+  - chi3: `outputs/critical_slowing_star_refine_N5_chi3_iter_20260224/summary.csv`
+  - chi4: `outputs/critical_slowing_star_refine_N5_chi4_iter_20260224/summary.csv`
+  - chi5: `outputs/critical_slowing_star_refine_N5_chi5_iter_20260224/summary.csv`
+  - star lambdas: `1.50, 1.55, 1.60, 1.65, 1.70`
+  - guard anchors in each run: `path=1.0`, `cycle=0.61`
+  - consolidated: `outputs/critical_slowing_star_refine_N5_iterative_20260224/peaks_by_chi.csv`
+
+- **Readout**:
+  - `path` guard (`tau_dephase_probe`) remains at `lambda=1.0` for `chi=3,4,5`.
+  - `cycle` guard (`tau_dephase_global`) remains at `lambda=0.61` for `chi=3,4,5`.
+  - refined star peak (`tau_dephase_probe`) shifts:
+    - `chi=3`: peak at `lambda=1.50` (`tau~9.09`)
+    - `chi=4`: peak at `lambda=1.65` (`tau~10.91`)
+    - `chi=5`: peak at `lambda=1.60` (`tau~7.27`)
+
+- **Tolerance control (chi5)**:
+  - rerun with tighter iterative tolerance:
+    - `outputs/critical_slowing_star_refine_N5_chi5_iter_tol1e9_20260224/summary.csv`
+  - peak location and tau profile are unchanged; max metric difference is `~1.5e-9` in non-leading fields.
+
+- **Interpretation update**:
+  - Remaining cutoff sensitivity is localized to star high-lambda behavior.
+  - Star drift is not explained by iterative solver tolerance at current settings.

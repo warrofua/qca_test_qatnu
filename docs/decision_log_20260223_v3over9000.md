@@ -565,5 +565,43 @@ Interpretation:
 - On this anchor matrix, path and cycle peak locations look cutoff-stable, while star still shows cutoff sensitivity.
 - Therefore, the main unresolved cutoff issue is now localized to star-window resolution (not a global solver infeasibility).
 
+## Sweep Y: star-window refinement on converged backend (2026-02-24)
+Goal:
+Resolve whether the star cutoff drift persists after refining the lambda window.
+
+Protocol:
+- backend: iterative (`eigsh` + Krylov evolution)
+- `N=5`
+- star lambdas: `1.50,1.55,1.60,1.65,1.70`
+- guard anchors each run: `path=1.0`, `cycle=0.61`
+- `t_max=60`, `n_times=100`, hotspot multiplier `3.0`
+
+Runs:
+- chi3: `outputs/critical_slowing_star_refine_N5_chi3_iter_20260224/summary.csv`
+- chi4: `outputs/critical_slowing_star_refine_N5_chi4_iter_20260224/summary.csv`
+- chi5: `outputs/critical_slowing_star_refine_N5_chi5_iter_20260224/summary.csv`
+- chi5 tighter-tolerance control:
+  - `outputs/critical_slowing_star_refine_N5_chi5_iter_tol1e9_20260224/summary.csv`
+
+Consolidated artifact:
+- `outputs/critical_slowing_star_refine_N5_iterative_20260224/peaks_by_chi.csv`
+
+Readout:
+- `path` guard (`tau_dephase_probe`) remains at `lambda=1.0` for `chi=3,4,5`.
+- `cycle` guard (`tau_dephase_global`) remains at `lambda=0.61` for `chi=3,4,5`.
+- refined `star` peak (`tau_dephase_probe`) by chi:
+  - `chi=3`: `lambda=1.50` (`tau~9.09`)
+  - `chi=4`: `lambda=1.65` (`tau~10.91`)
+  - `chi=5`: `lambda=1.60` (`tau~7.27`)
+
+Tolerance control:
+- chi5 (`iterative_tol=5e-8` vs `1e-9`) gives identical star tau profile on this grid
+  (max metric diff `~1.5e-9` in non-leading fields), so peak placement is not a solver-tolerance artifact.
+
+Interpretation:
+- star remains cutoff-sensitive in this refined window (no single converged peak yet).
+- path and cycle appear stable under the same protocol.
+- the unresolved convergence issue is now sharply isolated to star high-lambda behavior.
+
 ## Immediate next experiment
-Run a star-focused dense anchor refinement (`N5`, `chi=3,4,5`, `lambda=1.50,1.55,1.60,1.65,1.70`) with the iterative backend, plus one path guard (`lambda=1.0`) and cycle guard (`lambda=0.61`) per chi, to determine whether star converges to a stable peak or continues drifting with cutoff.
+Run hotspot-multiplier sensitivity (`2.0x, 3.0x, 4.0x`) on the now-stable path/cycle anchors (`path~1.0`, `cycle~0.61`) and on the star refined window (`1.50-1.70`) at `chi=4,5` to test whether remaining star drift is intrinsic or driven by the heuristic hotspot protocol.
