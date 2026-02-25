@@ -596,3 +596,35 @@ Summary:
   - practical effect:
     - N5 path/star at `chi=4` (`dim=8192`) now routes to iterative backend by default.
     - dense-only workflow is now opt-in (`--solver-backend dense`).
+
+## No-retuning transfer holdout with locked dB/kappa/hotspot (February 25, 2026)
+- **Locked parameterization**:
+  - `deltaB=5.0`, `kappa=0.1`, `hotspot_multiplier=3.0`, `k0=4`, `bond_cutoff=4`
+- **Protocol**:
+  - Script: `scripts/no_retuning_holdout_test.py`
+  - Goal: topology transfer with no retuning across path/cycle/star holdouts.
+
+- **Fast all-topology screen (8-point grid, no refine)**:
+  - output: `outputs/no_retuning_holdout_20260225_locked_d5_k01_h3_quick8/holdout_summary.csv`
+  - output: `outputs/no_retuning_holdout_20260225_locked_d5_k01_h3_quick8/holdout_report.md`
+  - readout:
+    - `N4_cycle_alpha0.8`: `no_violation_detected=True` (no critical triplet)
+    - `N4_path_alpha1.0`: coarse-grid alias (`lambda_c1=lambda_revival=0.3`) -> ordering fail
+    - `N4_star_alpha0.8`: coarse-grid alias + target mismatch
+    - overall: **FAIL**
+
+- **Path+star disambiguation run (16-point grid, no refine)**:
+  - output: `outputs/no_retuning_holdout_20260225_locked_d5_k01_h3_pathstar16/holdout_summary.csv`
+  - output: `outputs/no_retuning_holdout_20260225_locked_d5_k01_h3_pathstar16/holdout_report.md`
+  - readout:
+    - `N4_path_alpha1.0`: **PASS** (`lambda_c1=0.19`, `lambda_revival=0.37`, `lambda_c2=0.657`, `residual_min=0.136`)
+    - `N4_star_alpha0.8`: **FAIL target-match** despite valid ordering (`lambda_c1=0.19`, `lambda_revival=0.28`, `lambda_c2=0.37`, `residual_min=0.160`)
+      - target errors: `|Δc1|=0.026`, `|Δrev|=1.02`, `|Δc2|=1.03`
+    - overall: **FAIL**
+
+- **Interpretation update**:
+  - Under the current locked physics knobs, transfer remains topology-fragile:
+    - path can satisfy structural criteria at moderate grid density,
+    - star fails by a large revival/c2 shift,
+    - cycle can remain in a no-violation regime where revival landmarks do not activate.
+  - This supports prioritizing topology-conditioned mechanisms over further single-lock tuning.
