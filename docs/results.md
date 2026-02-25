@@ -536,3 +536,63 @@ Summary:
 - **Interpretation update**:
   - Remaining cutoff sensitivity is localized to star high-lambda behavior.
   - Star drift is not explained by iterative solver tolerance at current settings.
+
+## Next-10 closure: star sensitivity + backend gating (February 25, 2026)
+- **Step 1 completion (star extension to 1.75/1.80)**:
+  - outputs:
+    - `outputs/critical_slowing_star_extend_hi_N5_hotspot3.0_chi4_iter_20260225/summary.csv`
+    - `outputs/critical_slowing_star_extend_hi_N5_hotspot3.0_chi5_iter_20260225/summary.csv`
+    - `outputs/critical_slowing_star_extend_hi_N5_hotspot4.0_chi4_iter_20260225/summary.csv`
+    - `outputs/critical_slowing_star_extend_hi_N5_hotspot4.0_chi5_iter_20260225/summary.csv`
+  - readout:
+    - `hotspot=3.0`: local max in extension window at `lambda=1.80` (`chi=4`) and `lambda=1.70` (`chi=5`).
+    - `hotspot=4.0`: local max at `lambda=1.75` (`chi=4`) and `lambda=1.80` (`chi=5`).
+
+- **Step 6 (`tester.py` lambda semantics check)**:
+  - code: `tester.py` now explicitly maps measured depth proxy to Λ through `_lambda_from_depth_metric` (identity by definition), with depth and lambda values both logged in validation output.
+  - canonical comparator (`N=4`, `alpha=0.8`, `lambda=1.058`) artifact:
+    - `outputs/tester_lambda_semantics_20260225/summary.json`
+  - result:
+    - residual(current semantics) = `0.193560504777191`
+    - residual(legacy expression) = `0.193560504777191`
+    - delta = `1.11e-16` (pure roundoff)
+
+- **Step 7 (dense-vs-iterative regression gate)**:
+  - new script: `scripts/backend_regression_check.py`
+  - contract: fail run if `max_abs_diff > 1e-8` across numeric summary metrics.
+  - high-dim anchor run (`N=5`, `chi=4`, `path:1.0`, `star:1.6`) artifact:
+    - `outputs/backend_regression_check_N5_chi4_20260225/summary.json`
+    - `outputs/backend_regression_check_N5_chi4_20260225/report.md`
+  - result: **PASS**, `max_abs_diff = 1.11e-10 < 1e-8`.
+
+- **Steps 8-9 (kappa/deltaB sweeps on refined star window)**:
+  - kappa outputs:
+    - `outputs/critical_slowing_star_kappa_N5_hotspot3_k0.05_chi4_iter_20260225/summary.csv`
+    - `outputs/critical_slowing_star_kappa_N5_hotspot3_k0.1_chi4_iter_20260225/summary.csv`
+    - `outputs/critical_slowing_star_kappa_N5_hotspot3_k0.2_chi4_iter_20260225/summary.csv`
+    - `outputs/critical_slowing_star_kappa_N5_hotspot3_k0.05_chi5_iter_20260225/summary.csv`
+    - `outputs/critical_slowing_star_kappa_N5_hotspot3_k0.1_chi5_iter_20260225/summary.csv`
+    - `outputs/critical_slowing_star_kappa_N5_hotspot3_k0.2_chi5_iter_20260225/summary.csv`
+  - deltaB outputs:
+    - `outputs/critical_slowing_star_deltaB_N5_hotspot3_d4.0_chi4_iter_20260225/summary.csv`
+    - `outputs/critical_slowing_star_deltaB_N5_hotspot3_d5.0_chi4_iter_20260225/summary.csv`
+    - `outputs/critical_slowing_star_deltaB_N5_hotspot3_d6.0_chi4_iter_20260225/summary.csv`
+    - `outputs/critical_slowing_star_deltaB_N5_hotspot3_d4.0_chi5_iter_20260225/summary.csv`
+    - `outputs/critical_slowing_star_deltaB_N5_hotspot3_d5.0_chi5_iter_20260225/summary.csv`
+    - `outputs/critical_slowing_star_deltaB_N5_hotspot3_d6.0_chi5_iter_20260225/summary.csv`
+  - consolidated:
+    - `outputs/critical_slowing_next10_completion_20260225/star_peak_summary.csv`
+    - `outputs/critical_slowing_next10_completion_20260225/sensitivity_spans_by_chi.csv`
+    - `outputs/critical_slowing_next10_completion_20260225/report.md`
+  - span summary (peak lambda drift in this window):
+    - `kappa`: span `0.10` (`chi=4`), `0.15` (`chi=5`)
+    - `deltaB`: span `0.00` (`chi=4`), `0.05` (`chi=5`)
+    - hotspot extension (`3.0 -> 4.0`): span `0.05` (`chi=4`), `0.10` (`chi=5`)
+
+- **Step 10 (default promotion to auto backend)**:
+  - `scripts/critical_slowing_scan.py` defaults updated:
+    - `--solver-backend` default: `auto` (was `dense`)
+    - `--auto-dense-threshold` default: `8000` (was `12000`)
+  - practical effect:
+    - N5 path/star at `chi=4` (`dim=8192`) now routes to iterative backend by default.
+    - dense-only workflow is now opt-in (`--solver-backend dense`).

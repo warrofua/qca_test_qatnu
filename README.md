@@ -14,6 +14,8 @@ with $\Lambda_i$ extracted from the logarithmic bond-depth profile of the SRQID 
 3. **Postulate 1 validation:** for each λ sample we compare the measured frequency ratio (FFT of the Ramsey traces) to $(1+\alpha\Lambda_{\text{out}})/(1+\alpha\Lambda_{\text{in}})$, producing the residual/phase diagrams cited in the status paper.
 4. **SRQID + spin‑2 checks:** Lieb–Robinson velocity, no-signalling, energy drift, mean-field overlays, and χ→spin-2 PSD diagnostics run within the same Hamiltonian so the entire QATNU/SRQID story stays in one script.
 
+The hotspot background uses `λ_hotspot = hotspot_multiplier × λ` (default `3.0`, overridable with `--hotspot-multiplier`) so frustration sensitivity can be tested directly from CLI.
+
 The goal is to give the “unified app” promised in the preprints: phase diagrams, critical points, Ramsey overlays, SRQID metrics, and spin‑2 figures all emerge from a single exact-diagonalization workflow while remaining faithful to the theory narrative.
 
 ## Key capabilities
@@ -73,6 +75,8 @@ python app.py --N 4 --alpha 0.8 --points 100 --phase-space
 - `--lambda-max` : Maximum λ for the 1-D scan (default: 1.5)
   - Use these to "zoom" into specific λ regions of interest
   - Example: `--lambda-min 0.5 --lambda-max 0.7 --points 50`
+- `--hotspot-multiplier` : Multiplier applied to λ for the hotspot/frustrated background (default: 3.0)
+  - Use `2.0`, `3.0`, `4.0` for multiplier sensitivity tests
 - `--phase-space` : Additionally generate the 2-D (α, λ) heatmap
   - Runs 12×6 grid by default (α∈[0.2,1.2], λ∈[0.1,1.2])
   - Warning: significantly increases runtime (~72 parameter points)
@@ -142,6 +146,41 @@ python app.py --N 4 --alpha 0.8 --points 100 --bond-cutoff 12
 python app.py --N 6 --alpha 0.8 --points 30 --bond-cutoff 3
 ```
 
+**Hotspot-multiplier sensitivity grid across α (reproducible batch script):**
+```bash
+.venv/bin/python scripts/hotspot_alpha_grid.py \
+  --alphas 0.6,0.8,1.0,1.2 \
+  --hotspot-multipliers 2.0,3.0,4.0 \
+  --points 80 \
+  --quiet-scanner
+```
+This script exports both revival definitions:
+- `lambda_revival_first` (first post-violation local minimum, fallback to global minimum)
+- `lambda_revival_global` (global post-violation minimum)
+Official reporting now uses `lambda_revival_global`; `lambda_revival_first` is kept for sensitivity diagnostics.
+
+**Robustness sweep over `deltaB`, `kappa`, and `bond_cutoff`:**
+```bash
+.venv/bin/python scripts/robustness_sweep.py \
+  --N 4 --alpha 0.8 --points 24 \
+  --deltaB-values 3.0,5.0,7.0 \
+  --kappa-values 0.05,0.1,0.2 \
+  --bond-cutoff-values 3,4,5 \
+  --quiet-scanner
+```
+
+**Deep-time critical-slowing scan (N5-ready default backend policy):**
+```bash
+.venv/bin/python scripts/critical_slowing_scan.py \
+  --N 5 \
+  --topologies path,cycle,star \
+  --lambdas 'path:1.0,1.1;cycle:0.55,0.61,0.65;star:1.5,1.6,1.7' \
+  --bond-cutoff 4 \
+  --hotspot-multiplier 3.0 \
+  --output-dir outputs/critical_slowing_example_auto_backend
+```
+As of February 25, 2026, `scripts/critical_slowing_scan.py` defaults to `--solver-backend auto` with `--auto-dense-threshold 8000`, so N5 path/star `chi=4` routes to iterative mode by default. Use `--solver-backend dense` only for explicit parity checks.
+
 ### Output structure
 
 Each run creates timestamped directories with the naming pattern `run_YYYYMMDD-HHMMSS_N{N}_{graph}_alpha{α}`.
@@ -155,6 +194,7 @@ Each run creates timestamped directories with the naming pattern `run_YYYYMMDD-H
 outputs/run_20260202-154356_N4_path_alpha0.80/
 outputs/run_20260202-220212_N4_path_alpha0.80_chi8_lam0.10-0.30_pts2/
 outputs/run_20260202-221500_N5_path_alpha0.80_chi3/
+outputs/run_20260223-101500_N4_path_alpha0.80_hots2.00_pts40/
 ```
 
 **Generated files:**

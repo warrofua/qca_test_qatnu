@@ -711,14 +711,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--solver-backend",
         type=str,
-        default="dense",
+        default="auto",
         choices=["dense", "iterative", "auto"],
-        help="dense: full diagonalization; iterative: sparse ground + Krylov evolution",
+        help="auto (default): choose iterative at/above threshold; dense: full diagonalization; iterative: sparse ground + Krylov evolution",
     )
     p.add_argument(
         "--auto-dense-threshold",
         type=int,
-        default=12000,
+        default=8000,
         help="When solver-backend=auto, dims >= threshold use iterative backend.",
     )
     p.add_argument("--iterative-tol", type=float, default=1e-9)

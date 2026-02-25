@@ -20,6 +20,7 @@ class QCATester:
         N: int = 4,
         alpha: float = 0.8,
         bond_cutoff: int = 4,
+        hotspot_multiplier: float = 3.0,
         edges: Optional[List[Tuple[int, int]]] = None,
         probes: Optional[Tuple[int, int]] = None,
     ):
@@ -31,6 +32,7 @@ class QCATester:
             "alpha": alpha,
             "deltaB": 5.0,
             "lambda": 0.3,
+            "hotspotMultiplier": hotspot_multiplier,
             "kappa": 0.1,
             "k0": 4,
             "bondCutoff": bond_cutoff,
@@ -60,8 +62,12 @@ class QCATester:
             edges=config.get("edges"),
         )
 
+        hotspot_multiplier = config.get(
+            "hotspotMultiplier",
+            self.parameters.get("hotspotMultiplier", 3.0),
+        )
         hotspot_config = config.copy()
-        hotspot_config["lambda"] = config["lambda"] * 3.0
+        hotspot_config["lambda"] = config["lambda"] * hotspot_multiplier
         qca_hotspot = ExactQCA(
             config["N"],
             hotspot_config,
@@ -103,6 +109,8 @@ class QCATester:
             "bondDims": bond_dims,
             "depthOut": depth_out,
             "depthIn": depth_in,
+            "frustrated_state": frustrated_state,
+            "qca": qca,
             "config": config,
         }
 
@@ -147,11 +155,21 @@ class QCATester:
         peak_idx = np.argmax(np.abs(fft[pos_mask]))
         return 2 * np.pi * freqs[pos_mask][peak_idx]
 
+    @staticmethod
+    def _lambda_from_depth_metric(depth_metric: float) -> float:
+        """
+        The exact engine already reports the log-depth proxy Λ = log2(1 + degree).
+        Keep this as identity to avoid accidental re-transformations.
+        """
+        return float(depth_metric)
+
     def validate_postulate(self, exact_results: Dict) -> Dict:
         p = exact_results["config"]
 
-        measured_lambda_out = np.log2(1.0 + 2.0 ** exact_results["depthOut"] - 1.0)
-        measured_lambda_in = np.log2(1.0 + 2.0 ** exact_results["depthIn"] - 1.0)
+        depth_out = float(exact_results["depthOut"])
+        depth_in = float(exact_results["depthIn"])
+        measured_lambda_out = self._lambda_from_depth_metric(depth_out)
+        measured_lambda_in = self._lambda_from_depth_metric(depth_in)
 
         predicted_out = p["omega"] / (1.0 + p["alpha"] * measured_lambda_out)
         predicted_in = p["omega"] / (1.0 + p["alpha"] * measured_lambda_in)
@@ -162,6 +180,8 @@ class QCATester:
         )
 
         return {
+            "measuredDepthOut": depth_out,
+            "measuredDepthIn": depth_in,
             "measuredLambdaOut": measured_lambda_out,
             "measuredLambdaIn": measured_lambda_in,
             "predictedFreqOut": predicted_out,
