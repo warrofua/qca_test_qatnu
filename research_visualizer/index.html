@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QATNU Research Visualizer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="background-grid"></div>
+    <div class="app-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Unitary Lattice Observatory</p>
+          <h1>QATNU / SRQID Research Visualizer</h1>
+          <p id="hero-text" class="hero-copy"></p>
+        </div>
+        <aside class="hero-panel">
+          <div class="metric-chip">
+            <span>Scalar Core</span>
+            <strong>Supported</strong>
+          </div>
+          <div class="metric-chip metric-chip-alert">
+            <span>Tensor Headline</span>
+            <strong>Not Supported</strong>
+          </div>
+          <div class="metric-chip">
+            <span>Topology</span>
+            <strong>Physics, not nuisance</strong>
+          </div>
+        </aside>
+      </header>
+
+      <section class="control-deck">
+        <div class="view-tabs" id="view-tabs"></div>
+        <div class="filters">
+          <label>
+            <span>Tensor N</span>
+            <select id="tensor-n-select"></select>
+          </label>
+          <label>
+            <span>Tensor λ</span>
+            <select id="tensor-lambda-select"></select>
+          </label>
+          <label>
+            <span>Tensor χ</span>
+            <select id="tensor-chi-select"></select>
+          </label>
+        </div>
+      </section>
+
+      <main class="dashboard-grid">
+        <section class="stage-panel">
+          <div class="section-head">
+            <h2 id="stage-title">Stage</h2>
+            <p id="stage-subtitle"></p>
+          </div>
+          <div id="stage-grid" class="stage-grid-inner"></div>
+        </section>
+
+        <aside class="insight-panel">
+          <div class="section-head compact">
+            <h2>Why This Matters</h2>
+          </div>
+          <div id="insight-copy" class="insight-copy"></div>
+          <div class="section-head compact">
+            <h2>Provenance</h2>
+          </div>
+          <div id="source-list" class="source-list"></div>
+        </aside>
+      </main>
+
+      <section class="status-band">
+        <div class="status-card">
+          <h3>Established</h3>
+          <ul id="established-list"></ul>
+        </div>
+        <div class="status-card">
+          <h3>Indicated</h3>
+          <ul id="indicated-list"></ul>
+        </div>
+        <div class="status-card status-card-alert">
+          <h3>Not Supported</h3>
+          <ul id="unsupported-list"></ul>
+        </div>
+      </section>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
