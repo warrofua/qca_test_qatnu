@@ -47,6 +47,11 @@ python3 -m pip install -r Simulator/requirements.txt
 - The left table is the active dataset for that view.
 - The right-hand panels show:
   - an ASCII topology sketch inferred from the selected row
+  - a view-specific visual summary:
+    - scalar landmark timeline
+    - TT comparison bars
+    - critical-slowing peak bars
+    - redteam rank-span bars
   - row-specific detail for the currently highlighted result
 - Use arrow keys inside the table to move between rows.
 

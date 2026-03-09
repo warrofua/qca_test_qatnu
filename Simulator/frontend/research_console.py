@@ -120,6 +120,10 @@ class ResearchConsole(App):
         height: 14;
     }
 
+    #visual-pane {
+        height: 14;
+    }
+
     #detail-pane {
         height: 1fr;
     }
@@ -180,6 +184,7 @@ class ResearchConsole(App):
                         yield DataTable(id="table-pane")
                         with Vertical(id="detail-column"):
                             yield Static("", id="graph-pane", classes="panel")
+                            yield Static("", id="visual-pane", classes="panel")
                             yield Static("", id="detail-pane", classes="panel")
                     yield Static("", id="files-pane", classes="panel")
         yield Footer()
@@ -299,8 +304,10 @@ class ResearchConsole(App):
         row_index = max(0, min(row_index, len(self.current_dataset.raw_rows) - 1))
         raw_row = self.current_dataset.raw_rows[row_index]
         graph = self.query_one("#graph-pane", Static)
+        visual = self.query_one("#visual-pane", Static)
         detail = self.query_one("#detail-pane", Static)
         graph.update(self._graph_panel_text(raw_row))
+        visual.update(self._visual_panel_text(raw_row))
         detail.update(self._detail_panel_text(raw_row))
 
     def _graph_panel_text(self, raw_row: Dict[str, str]) -> str:
@@ -348,6 +355,117 @@ class ResearchConsole(App):
             f"power_max: {raw_row.get('power_max', '-')}\n"
             f"power_span: {raw_row.get('power_span', '-')}"
         )
+
+    def _visual_panel_text(self, raw_row: Dict[str, str]) -> str:
+        if self.current_dataset_key == "holdout":
+            return self._holdout_visual(raw_row)
+        if self.current_dataset_key == "tensor_covariance":
+            return self._tensor_visual(raw_row)
+        if self.current_dataset_key == "critical_slowing":
+            return self._critical_visual(raw_row)
+        return self._redteam_visual(raw_row)
+
+    def _holdout_visual(self, raw_row: Dict[str, str]) -> str:
+        c1 = self._safe_float(raw_row.get("lambda_c1"))
+        revival = self._safe_float(raw_row.get("lambda_revival"))
+        c2 = self._safe_float(raw_row.get("lambda_c2"))
+        residual = self._safe_float(raw_row.get("residual_min"))
+        scenario = raw_row.get("scenario_id", "-")
+        graph = raw_row.get("graph", "-")
+        pass_flag = raw_row.get("scenario_pass", "-")
+        lines = [
+            "[b]Phase landmarks[/b]",
+            self._timeline(
+                [("c1", c1), ("rev", revival), ("c2", c2)],
+                limit=max(1.5, c2 * 1.1 if c2 is not None else 1.5),
+            ),
+            "",
+            f"residual {self._bar(residual, max_value=0.40)} {self._fmt_num(residual)}",
+            "",
+            "[b]Transfer snapshot[/b]",
+        ]
+        if self.current_dataset:
+            for row in self.current_dataset.raw_rows:
+                lines.append(
+                    f"{row.get('graph','-'):>5} "
+                    f"{self._pass_chip(row.get('scenario_pass', '-'))} "
+                    f"rev {self._fmt_num(self._safe_float(row.get('lambda_revival')))}"
+                )
+        lines.extend(["", f"selected: {scenario} ({graph}) {self._pass_chip(pass_flag)}"])
+        return "\n".join(lines)
+
+    def _tensor_visual(self, raw_row: Dict[str, str]) -> str:
+        raw_power = self._safe_float(raw_row.get("raw_power"))
+        bg_power = self._safe_float(raw_row.get("bg_power"))
+        covbg_power = self._safe_float(raw_row.get("covbg_power"))
+        topology = raw_row.get("topology", "-")
+        lam = raw_row.get("lambda", "-")
+        bond_cutoff = raw_row.get("bond_cutoff", "-")
+        scenario = raw_row.get("scenario_id", "-")
+        lines = [
+            "[b]TT observable bars[/b]",
+            f" raw  {self._signed_bar(raw_power, scale=2.5)} {self._fmt_num(raw_power)}",
+            f" shell{self._signed_bar(bg_power, scale=2.5)} {self._fmt_num(bg_power)}",
+            f" cov  {self._signed_bar(covbg_power, scale=2.5)} {self._fmt_num(covbg_power)}",
+            "",
+            "[b]Same-slice topology compare[/b]",
+        ]
+        if self.current_dataset:
+            n_label = "N5" if "N5" in scenario else "N4"
+            peers = [
+                row for row in self.current_dataset.raw_rows
+                if (("N5" in row.get("scenario_id", "")) == ("N5" in scenario))
+                and row.get("lambda") == lam
+                and row.get("bond_cutoff") == bond_cutoff
+            ]
+            for row in peers:
+                topo = row.get("topology", "-")
+                value = self._safe_float(row.get("covbg_power"))
+                marker = ">" if topo == topology else " "
+                lines.append(f"{marker}{topo:<5} {self._signed_bar(value, scale=2.5)} {self._fmt_num(value)}")
+            lines.extend(["", f"slice: {n_label}, lambda={lam}, chi={bond_cutoff}"])
+        return "\n".join(lines)
+
+    def _critical_visual(self, raw_row: Dict[str, str]) -> str:
+        peak_lambda = self._safe_float(raw_row.get("peak_lambda"))
+        peak_tau = self._safe_float(raw_row.get("peak_tau_dephase_probe"))
+        group = raw_row.get("group", "-")
+        lines = [
+            "[b]Peak location[/b]",
+            self._timeline([("peak", peak_lambda)], limit=1.8),
+            "",
+            f"tau   {self._bar(peak_tau, max_value=8.0)} {self._fmt_num(peak_tau)}",
+            "",
+            "[b]Group compare[/b]",
+        ]
+        if self.current_dataset:
+            peers = [row for row in self.current_dataset.raw_rows if row.get("group") == group]
+            for row in peers[:6]:
+                label = row.get("deltaB") or row.get("kappa") or row.get("hotspot") or row.get("chi") or "slice"
+                value = self._safe_float(row.get("peak_lambda"))
+                lines.append(f"{label:>5} {self._bar(value, max_value=1.8)} {self._fmt_num(value)}")
+        return "\n".join(lines)
+
+    def _redteam_visual(self, raw_row: Dict[str, str]) -> str:
+        power_min = self._safe_float(raw_row.get("power_min"))
+        power_max = self._safe_float(raw_row.get("power_max"))
+        power_span = self._safe_float(raw_row.get("power_span"))
+        scenario = raw_row.get("scenario_id", "-")
+        lines = [
+            "[b]Rank sensitivity[/b]",
+            f"min  {self._signed_bar(power_min, scale=3.0)} {self._fmt_num(power_min)}",
+            f"max  {self._signed_bar(power_max, scale=3.0)} {self._fmt_num(power_max)}",
+            f"span {self._bar(power_span, max_value=3.0)} {self._fmt_num(power_span)}",
+            "",
+            "[b]Scenario compare[/b]",
+        ]
+        if self.current_dataset:
+            peers = [row for row in self.current_dataset.raw_rows if row.get("scenario_id") == scenario]
+            for row in peers[:6]:
+                keep = row.get("keep_modes", "-")
+                value = self._safe_float(row.get("power_span"))
+                lines.append(f"m={keep:<3} {self._bar(value, max_value=3.0)} {self._fmt_num(value)}")
+        return "\n".join(lines)
 
     def _resolve_topology(self, raw_row: Dict[str, str]) -> tuple[str, int]:
         topology = raw_row.get("topology") or raw_row.get("graph")
@@ -409,6 +527,59 @@ class ResearchConsole(App):
                 ]
             )
         return "edges:\n" + "\n".join(f"{a}──{b}" for a, b in topo.edges)
+
+    def _safe_float(self, value: Optional[str]) -> Optional[float]:
+        try:
+            if value is None or value == "":
+                return None
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    def _fmt_num(self, value: Optional[float]) -> str:
+        if value is None:
+            return "-"
+        if abs(value) >= 1000 or (0 < abs(value) < 1e-3):
+            return f"{value:.2e}"
+        return f"{value:.3f}"
+
+    def _bar(self, value: Optional[float], *, max_value: float, width: int = 18) -> str:
+        if value is None:
+            return " " * width
+        clamped = max(0.0, min(value, max_value))
+        filled = int(round((clamped / max_value) * width))
+        return "█" * filled + "·" * (width - filled)
+
+    def _signed_bar(self, value: Optional[float], *, scale: float, width: int = 18) -> str:
+        if value is None:
+            return " " * width
+        half = width // 2
+        magnitude = min(abs(value) / scale, 1.0)
+        filled = int(round(magnitude * half))
+        if value >= 0:
+            return "·" * half + "│" + "█" * filled + "·" * (half - filled)
+        return "·" * (half - filled) + "█" * filled + "│" + "·" * half
+
+    def _timeline(self, markers: list[tuple[str, Optional[float]]], *, limit: float, width: int = 26) -> str:
+        axis = ["─"] * width
+        labels = [" "] * width
+        for name, value in markers:
+            if value is None:
+                continue
+            pos = int(round(max(0.0, min(value / limit, 1.0)) * (width - 1)))
+            axis[pos] = "●"
+            for offset, char in enumerate(name[:3]):
+                idx = min(width - 1, pos + offset)
+                labels[idx] = char
+        return f"0 {' '.join([])}{''.join(axis)} {limit:.1f}\n  {''.join(labels)}"
+
+    def _pass_chip(self, value: str) -> str:
+        lowered = str(value).lower()
+        if lowered == "true":
+            return "PASS"
+        if lowered == "false":
+            return "FAIL"
+        return str(value)
 
 
 def main() -> None:
