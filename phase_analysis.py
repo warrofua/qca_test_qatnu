@@ -21,29 +21,46 @@ class PhaseAnalyzer:
         except IndexError:
             lambda_c1 = None
 
+        lambda_revival_first = None
+        residual_min_first = None
+        lambda_revival_global = None
+        residual_min_global = None
+        revival_method = "none"
+        first_violation_lambda = None
+
         try:
             violation_region = df[df["residual"] > 0.10]
             if not violation_region.empty:
                 first_viol_idx = violation_region.index[0]
+                first_violation_lambda = float(df.loc[first_viol_idx, "lambda"])
                 post_violation = df.loc[first_viol_idx:]
 
-                minima_indices, _ = find_peaks(
-                    -post_violation["residual"].values, height=-0.15, distance=5
-                )
+                if not post_violation.empty:
+                    global_idx = post_violation["residual"].idxmin()
+                    lambda_revival_global = float(df.loc[global_idx, "lambda"])
+                    residual_min_global = float(df.loc[global_idx, "residual"])
 
-                if len(minima_indices) > 0:
-                    revival_idx = post_violation.index[minima_indices[0]]
-                    lambda_revival = df.loc[revival_idx, "lambda"]
-                    residual_min = df.loc[revival_idx, "residual"]
-                else:
-                    idx_revival = violation_region["residual"].idxmin()
-                    lambda_revival = df.loc[idx_revival, "lambda"]
-                    residual_min = df.loc[idx_revival, "residual"]
-            else:
-                lambda_revival = None
-                residual_min = None
+                    minima_indices, _ = find_peaks(
+                        -post_violation["residual"].values, height=-0.15, distance=5
+                    )
+
+                    if len(minima_indices) > 0:
+                        first_idx = post_violation.index[minima_indices[0]]
+                        lambda_revival_first = float(df.loc[first_idx, "lambda"])
+                        residual_min_first = float(df.loc[first_idx, "residual"])
+                        revival_method = "first_local_minimum"
+                    else:
+                        # No local revival detected; fall back to global minimum in the post-violation region.
+                        lambda_revival_first = lambda_revival_global
+                        residual_min_first = residual_min_global
+                        revival_method = "global_minimum_fallback"
         except Exception:
-            lambda_revival = residual_min = None
+            pass
+
+        # Official reporting rule: use global minimum in the post-violation region.
+        # Keep first-local values as diagnostics for method-sensitivity audits.
+        lambda_revival = lambda_revival_global
+        residual_min = residual_min_global
 
         try:
             if lambda_revival is not None:
@@ -58,6 +75,20 @@ class PhaseAnalyzer:
             "lambda_c1": lambda_c1,
             "lambda_revival": lambda_revival,
             "residual_min": residual_min,
+            "lambda_revival_first": lambda_revival_first,
+            "residual_min_first": residual_min_first,
+            "lambda_revival_global": lambda_revival_global,
+            "residual_min_global": residual_min_global,
+            "first_violation_lambda": first_violation_lambda,
+            "revival_method": revival_method,
+            "revival_reporting_rule": (
+                "global_minimum_post_violation" if lambda_revival is not None else "none"
+            ),
+            "revival_gap": (
+                abs(lambda_revival_first - lambda_revival_global)
+                if lambda_revival_first is not None and lambda_revival_global is not None
+                else None
+            ),
             "lambda_c2": lambda_c2,
         }
 

@@ -1,0 +1,43 @@
+QATNU/SRQID Production Run Summary
+============================================================
+Timestamp: 20260223-095841
+Run tag: run_20260223-095841_N3_path_alpha0.80_lam0.10-0.20_pts2
+N=3, graph=path, α=0.8, points=2, hotspot_multiplier=3.00x
+
+Critical Points:
+  lambda_c1: None
+  lambda_revival: None
+  lambda_c2: None
+  residual_min: None
+
+Revival Diagnostics:
+  first_violation_lambda: None
+  revival_reporting_rule: none
+  revival_method: none
+  lambda_revival_first: None
+  residual_min_first: None
+  lambda_revival_global: None
+  residual_min_global: None
+  revival_gap: None
+
+SRQID Validations:
+  v_LR: None
+  No-signalling: 2.421e-16
+  Energy drift: 4.441e-15
+
+Mean-field Comparison:
+  λ_focus: 0.2000
+  Residual: 3.3063e-02
+  Measured ω_out / ω_in: 0.9331 / 0.9331
+  Predicted ω_out / ω_in: 0.9647 / 0.9328
+
+Spin-2 PSD:
+  Measured power: 2.691
+  Expected power: 2.000
+  Residual: 6.910e-01
+
+Artifacts:
+  scan: outputs/run_20260223-095841_N3_path_alpha0.80_lam0.10-0.20_pts2/scan_run_20260223-095841_N3_path_alpha0.80_lam0.10-0.20_pts2.csv
+  phase_diagram: figures/run_20260223-095841_N3_path_alpha0.80_lam0.10-0.20_pts2/phase_diagram_run_20260223-095841_N3_path_alpha0.80_lam0.10-0.20_pts2.png
+  spin2_psd: figures/run_20260223-095841_N3_path_alpha0.80_lam0.10-0.20_pts2/spin2_psd_run_20260223-095841_N3_path_alpha0.80_lam0.10-0.20_pts2.png
+  ramsey_overlay: figures/run_20260223-095841_N3_path_alpha0.80_lam0.10-0.20_pts2/ramsey_overlay_run_20260223-095841_N3_path_alpha0.80_lam0.10-0.20_pts2.png

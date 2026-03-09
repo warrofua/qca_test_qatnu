@@ -1,0 +1,5 @@
+scenario,n_perms,bg_power_span,covbg_power_span,harmbg_power_span,source_site_unique,shell_count_unique
+N4_cycle,8,0.0,0.0,0.0,[0],[3]
+N4_star,6,0.0,0.0,0.0,[0],[2]
+N5_cycle,10,0.5058601776823707,1.4179479812526097e-10,2.886579864025407e-15,"[0, 1, 2, 3, 4]",[3]
+N5_star,24,0.0,2.6869206859458927e-10,1.21934129460044e-10,[0],[2]

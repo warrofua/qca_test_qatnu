@@ -1,5 +1,14 @@
 # Current Results Snapshot
 
+Canonical March 8 theory-status memo:
+
+- `docs/theory_status_20260308.md`
+
+Canonical consolidated paper draft and built PDF:
+
+- `docs/qatnu_consolidated_2026_rewrite.tex`
+- `docs/qatnu_consolidated_2026_rewrite.pdf`
+
 ## N = 4, α = 0.8, 100 λ points (run_20251116-154356_N4_alpha0.80)
 - **Critical points**: λ_c1 ≈ 0.203, λ_rev ≈ 1.058 (residual ≈ 13.4%), λ_c2 ≈ 1.095.
 - **SRQID checks**: v_LR ≈ 1.96, max no-signalling deviation ≈ 2.1×10⁻¹⁶, energy drift ≈ 1.4×10⁻¹⁴.
@@ -628,3 +637,322 @@ Summary:
     - star fails by a large revival/c2 shift,
     - cycle can remain in a no-violation regime where revival landmarks do not activate.
   - This supports prioritizing topology-conditioned mechanisms over further single-lock tuning.
+
+## Topology-conditioned correlated promotion in production path (March 8, 2026)
+- **Code update**:
+  - `core_qca.py` now supports `gamma_corr` and `gamma_corr_diag` directly in the production Hamiltonian for both dense and sparse backends.
+  - `scanners.py`, `tester.py`, and `app.py` now thread correlated-promotion parameters through the standard scan/validation workflow.
+  - `scripts/no_retuning_holdout_test.py` now supports:
+    - global `--gamma-corr`, `--gamma-corr-diag`
+    - graph-specific locked overrides via `--graph-overrides-json`
+
+- **First topology-conditioned holdout test**:
+  - lock: `deltaB=5.0`, `kappa=0.1`, `hotspot_multiplier=3.0`, `bond_cutoff=4`
+  - override: `{"star": {"gamma_corr": -0.25}}`
+  - output:
+    - `outputs/no_retuning_holdout_20260308_star_gamma_pathstar16/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_gamma_pathstar16/holdout_report.md`
+
+- **Readout**:
+  - `N4_path_alpha1.0` stays unchanged and passes (`gamma_corr=0`).
+  - `N4_star_alpha0.8` does **not** recover transfer:
+    - `lambda_c1=0.19`, `lambda_revival=0.19`, `lambda_c2=0.37`
+    - `residual_min=0.103` (better than the previous `0.160`)
+    - but ordering fails because `lambda_c1` and `lambda_revival` collapse together on this grid.
+
+- **Interpretation update**:
+  - A topology-conditioned structural mechanism is now available in the main pipeline, which is a real research advance.
+  - The first star-specific negative-`gamma_corr` test improves scalar residuals but does not yet repair topology transfer.
+  - That shifts the question from “can we implement a structural correction?” to “what structural channel separates revival placement from residual suppression?”
+
+- **Correlated diagonal follow-up**:
+  - star-only overrides with `gamma_corr=-0.25` and `gamma_corr_diag ∈ {-0.20, -0.10, 0.10, 0.20}` were screened at 16 points:
+    - `outputs/no_retuning_holdout_20260308_star_gamma_diag_-0.20_pathstar16/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_gamma_diag_-0.10_pathstar16/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_gamma_diag_0.10_pathstar16/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_gamma_diag_0.20_pathstar16/holdout_summary.csv`
+  - readout:
+    - star residual floor improves slightly as `gamma_corr_diag` becomes positive (`0.104 -> 0.101`)
+    - but `lambda_c1=lambda_revival=0.19` remains collapsed in every case
+  - interpretation:
+    - `gamma_corr_diag` behaves like a residual-suppression knob, not a revival-placement knob.
+
+- **Hotspot-time follow-up**:
+  - the production path now exposes hotspot preparation time as a first-class parameter:
+    - `app.py`: `--hotspot-time`
+    - `scanners.py`, `tester.py`, `scripts/no_retuning_holdout_test.py`: threaded end-to-end
+  - quick star-only holdout screen on top of `gamma_corr=-0.25`:
+    - `outputs/no_retuning_holdout_20260308_star_gamma_ht_0.50_pathstar16/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_gamma_ht_0.75_pathstar16/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_gamma_ht_1.25_pathstar16/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_gamma_ht_1.50_pathstar16/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_gamma_ht_2.00_pathstar16/holdout_summary.csv`
+  - refined check for the only promising candidate:
+    - `outputs/no_retuning_holdout_20260308_star_gamma_ht_0.50_pathstar48/holdout_summary.csv`
+  - readout:
+    - shorter hotspot time (`0.50`) reopens star phase ordering under the structural override:
+      - 48-point result: `lambda_c1=0.184`, `lambda_revival=0.269`, `lambda_c2=0.438`, `residual_min=0.105`
+    - longer times (`1.25`) re-collapse the ordering (`lambda_c1=lambda_revival=0.19`)
+    - path control remains unchanged and passing in all runs
+  - interpretation:
+    - hotspot-time shaping can move landmark geometry, unlike `gamma_corr_diag`
+    - but the shift is in the wrong direction for the star target (`lambda_revival≈1.30`), so the missing topology-transfer mechanism is still not identified.
+
+- **Edge-local hotspot mask follow-up**:
+  - the production Hamiltonian now supports per-edge hotspot weighting during source preparation via `lambda_edge_weights` in `core_qca.py`
+  - the production/holdout path now exposes this as hotspot-only edge masks:
+    - `app.py`: `--hotspot-edge-weights-json`
+    - `scanners.py`, `tester.py`, `scripts/no_retuning_holdout_test.py`: threaded end-to-end
+  - quick star-only mask screen on top of `gamma_corr=-0.25`, `hotspot_time=0.5`:
+    - `outputs/no_retuning_holdout_20260308_star_mask_anti_mild_pathstar16/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_mask_anti_strong_pathstar16/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_mask_probe_focus_pathstar16/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_mask_skew_pathstar16/holdout_summary.csv`
+  - readout:
+    - anti-probe mask `[0.5, 1.25, 1.25]`: preserves early revival (`0.19, 0.28, 0.37`) but worsens residual (`0.180`)
+    - strong anti-probe mask `[0.25, 1.375, 1.375]`: collapses ordering again (`0.19, 0.19, 0.28`)
+    - probe-focused mask `[1.5, 0.75, 0.75]`: pushes landmarks later (`0.28, 0.46, 0.55`) but residual explodes (`0.361`)
+    - skew mask `[0.5, 1.75, 0.75]`: ordering collapses (`0.19, 0.19, 0.37`)
+  - combination test with probe-focused mask plus positive `gamma_corr_diag`:
+    - `outputs/no_retuning_holdout_20260308_star_mask_probe_focus_gcd_0.10_pathstar16/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_mask_probe_focus_gcd_0.20_pathstar16/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_mask_probe_focus_gcd_0.40_pathstar16/holdout_summary.csv`
+  - readout:
+    - positive `gamma_corr_diag` leaves the later landmark geometry intact
+    - but residual remains very poor (`0.361 -> 0.359`), far above the acceptance gate
+  - interpretation:
+    - this is the clearest structural tradeoff seen so far:
+      - spoke-local source shaping can move star landmark geometry in the right qualitative direction,
+      - but the same move destroys scalar residual quality,
+      - and the diagonal correlated term does not recover that loss.
+
+- **Two-stage hotspot preparation follow-up**:
+  - the production path now supports sequential hotspot stages, each with its own:
+    - `multiplier`
+    - `time`
+    - optional `edge_weights`
+  - threaded through:
+    - `app.py`: `--hotspot-stages-json`
+    - `scanners.py`, `tester.py`, `scripts/no_retuning_holdout_test.py`
+  - 16-point star-only stage screen on top of `gamma_corr=-0.25`:
+    - `outputs/no_retuning_holdout_20260308_star_2stage_probe_then_anti_pathstar16/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_2stage_probe_then_neutral_pathstar16/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_2stage_anti_then_probe_pathstar16/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_2stage_probe_short_anti_long_pathstar16/holdout_summary.csv`
+  - refined checks:
+    - `outputs/no_retuning_holdout_20260308_star_2stage_probe_then_neutral_pathstar48/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_2stage_probe_then_anti_pathstar48/holdout_summary.csv`
+  - readout:
+    - `probe_then_anti` at 48 points:
+      - `lambda_c1=0.184`
+      - `lambda_revival=0.269`
+      - `lambda_c2=0.466`
+      - `residual_min=0.100`
+    - `probe_then_neutral` at 48 points:
+      - `lambda_c1=0.213`
+      - `lambda_revival=0.353`
+      - `lambda_c2=0.466`
+      - `residual_min=0.112`
+  - interpretation:
+    - two-stage source shaping is the first structural modification that improves the geometry/residual tradeoff beyond the one-stage mask tests
+    - `probe_then_neutral` keeps the star landmarks later than the original low-residual branch while staying inside the residual gate
+    - `probe_then_anti` gives the lowest residual floor while preserving the later `lambda_c2`
+    - neither comes close to the star target window (`lambda_revival≈1.30`), so the topology-transfer problem is still open.
+
+- **Readout-only correlated dynamics follow-up**:
+  - the production path now supports readout-only correlated terms, separate from source preparation:
+    - `app.py`: `--readout-gamma-corr`, `--readout-gamma-corr-diag`
+    - `scanners.py`, `tester.py`, `scripts/no_retuning_holdout_test.py`
+  - screened on top of the refined `probe_then_neutral` two-stage source:
+    - `outputs/no_retuning_holdout_20260308_star_readout_rgc_-0.50_pathstar16/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_readout_rgc_-0.25_pathstar16/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_readout_rgc_0.25_pathstar16/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_readout_rgc_0.50_pathstar16/holdout_summary.csv`
+  - refined checks:
+    - `outputs/no_retuning_holdout_20260308_star_readout_rgc_0.25_pathstar48/holdout_summary.csv`
+    - `outputs/no_retuning_holdout_20260308_star_readout_rgc_0.25_rgd_0.20_pathstar48/holdout_summary.csv`
+  - readout:
+    - baseline two-stage source at 48 points:
+      - `lambda_c1=0.2125`, `lambda_revival=0.3531`, `lambda_c2=0.4656`, `residual_min=0.1118`
+    - adding `readout_gamma_corr=+0.25`:
+      - `lambda_c1=0.2125`, `lambda_revival=0.3531`, `lambda_c2=0.5500`, `residual_min=0.1118`
+    - adding `readout_gamma_corr_diag=+0.20` on top changes nothing measurable in this window
+  - interpretation:
+    - post-preparation readout dynamics can move `lambda_c2` without moving `lambda_c1`, `lambda_revival`, or the residual floor
+    - source shaping and readout dynamics therefore appear to control different phase landmarks
+    - this is the clearest evidence so far that the star failure is not a single-knob problem.
+
+- **Background-subtracted TT anchor test (scalar-background falsification pass)**:
+  - new pipeline pieces:
+    - `geometry.py`: canonical site-`Lambda` profile export plus shell averaging helpers
+    - `v3over9000/tensor_spin2.py`: public TT spectrum entrypoints for precomputed covariance and background-subtracted edge fields
+    - `scripts/tt_background_subtracted_matrix.py`: preregistered matrix runner for TT power after subtracting a shell-averaged scalar background
+  - smoke test:
+    - `outputs/tt_background_subtracted_smoke_20260308/`
+  - anchored `N4` matrix at the earlier star-favorable `chi=4,5` points:
+    - `outputs/tt_background_subtracted_N4_anchor_matrix_20260308/summary.csv`
+  - anchored `N5` matrix at the earlier star-favorable `chi=4` points:
+    - `outputs/tt_background_subtracted_N5_anchor_auto_20260308/summary.csv`
+  - readout:
+    - `N4 star`:
+      - raw TT power is already near zero (`-0.015` at `lambda=0.4`, `-0.038` at `lambda=1.0`)
+      - background-subtracted TT power collapses to numerical zero (`~6.3e-15`) at both `chi=4` and `chi=5`
+    - `N4 path`:
+      - raw TT power stays near zero
+      - background-subtracted TT power becomes nonzero but not tensor-like (`-0.660`)
+    - `N4 cycle`:
+      - background-subtracted TT power collapses to numerical zero
+    - `N5 star`:
+      - raw TT power remains small (`-0.144` at `lambda=0.6`, `-0.132` at `lambda=0.8`)
+      - background-subtracted TT power again collapses to numerical zero
+    - `N5 path`:
+      - background-subtracted TT power collapses to numerical zero at both anchors
+    - `N5 cycle`:
+      - `lambda=0.8` collapses to numerical zero
+      - `lambda=0.6` leaves a small nonzero remainder (`-0.334`), still far from the tensor target
+  - interpretation:
+    - the stricter TT-about-scalar-background test does not reproduce the earlier star-only near-`1/k^2` correlator hint at these anchor points
+    - under this subtraction/projection protocol, the star signal behaves like a scalar-background artifact rather than a surviving tensor sector
+    - this is not yet a theorem against every possible tensor observable, but it is the strongest negative update so far for the emergent spin-2 claim
+    - the repo center of gravity therefore moves further toward the scalar clock-renormalization / critical-dynamics story unless a more defensible TT fluctuation observable succeeds.
+
+- **Covariance-background TT follow-up**:
+  - motivation:
+    - the shell-averaged edge-field subtraction was intentionally hard on the tensor claim, but it may also have been too crude because it removed the signal at the field level rather than in covariance space
+  - new observable:
+    - keep the same source-site and shell construction
+    - compute connected bond covariance `C_ef`
+    - build an isotropic background covariance by shell-pair averaging `C_ef` as a function of edge shell `r_e, r_f`
+    - subtract only that isotropic covariance background and TT-project the residual covariance
+  - new artifacts:
+    - `outputs/tt_background_covariance_smoke2_20260308/`
+    - `outputs/tt_background_covariance_N4_anchor_auto_20260308/summary.csv`
+    - `outputs/tt_background_covariance_N5_anchor_auto_20260308/summary.csv`
+    - `outputs/tt_background_covariance_anchor_comparison_20260308.csv`
+  - readout:
+    - `N4 star`:
+      - covariance-subtracted power is nonzero but still far from target:
+        - `-0.352` at `lambda=0.4`
+        - `-0.352` at `lambda=1.0`
+    - `N4 cycle`:
+      - similar non-target covariance-subtracted power:
+        - `-0.351` at `lambda=0.4`
+        - `-0.333` at `lambda=1.0`
+    - `N4 path`:
+      - covariance-subtracted power is even farther from target:
+        - `-1.799` at `lambda=0.4`
+        - `-1.869` at `lambda=1.0`
+    - `N5 star`:
+      - covariance-subtracted power remains nonzero but still non-tensor-like:
+        - `-0.529` at `lambda=0.6`
+        - `-0.529` at `lambda=0.8`
+    - `N5 cycle`:
+      - `-0.390` at `lambda=0.6`
+      - `-0.387` at `lambda=0.8`
+    - `N5 path`:
+      - `-1.012` at `lambda=0.6`
+      - `-0.977` at `lambda=0.8`
+  - interpretation:
+    - the covariance-based decomposition is a better test than pure shell edge-field subtraction because it does not force trivial collapse
+    - but it still does not rescue the tensor claim:
+      - star is not near target,
+      - star does not separate cleanly from cycle,
+      - and path remains strongly non-target
+    - the net update is therefore:
+      - the shell-subtracted test was not the only possible background definition,
+      - but the first covariance-background follow-up still leaves no convincing TT sector at the anchored star points.
+
+- **Harmonic-background TT follow-up**:
+  - motivation:
+    - shell-pair covariance subtraction still imposes a radial ansatz by hand
+    - a more topology-native background is to remove the low-frequency line-graph Laplacian subspace and inspect only the orthogonal covariance residual
+  - new observable:
+    - build the line-graph Laplacian on the edge set
+    - define the background subspace using the lowest `m` eigenmodes, with `m = shell_count`
+    - form the residual covariance `(I - P_low) C (I - P_low)`
+    - TT-project that residual
+  - new artifacts:
+    - `outputs/tt_background_harmonic_smoke_20260308/`
+    - `outputs/tt_background_harmonic_N4_anchor_auto_20260308/summary.csv`
+    - `outputs/tt_background_harmonic_N5_anchor_auto_20260308/summary.csv`
+    - `outputs/tt_background_harmonic_anchor_comparison_20260308.csv`
+  - readout:
+    - `N4 cycle`:
+      - harmonic-background power jumps near target and is cutoff-stable:
+        - `2.537` at `lambda=0.4`
+        - `2.537` at `lambda=1.0`
+    - `N4 star`:
+      - stays clearly non-target:
+        - `-0.352` at `lambda=0.4`
+        - `-0.352` at `lambda=1.0`
+    - `N4 path`:
+      - collapses essentially to zero
+    - `N5 cycle`:
+      - does not maintain the `N4` near-target behavior:
+        - `0.338` at `lambda=0.6`
+        - `0.338` at `lambda=0.8`
+    - `N5 star`:
+      - remains non-target:
+        - `-0.549` at `lambda=0.6`
+        - `-0.549` at `lambda=0.8`
+    - `N5 path`:
+      - becomes strongly non-target:
+        - `-5.815` at both anchors
+  - interpretation:
+    - this is the first follow-up that materially changes the topology story:
+      - under harmonic-background subtraction, the strongest `N4` signal is on `cycle`, not `star`
+    - but that signal fails the finite-size carryover test to `N5`
+    - the most likely reading is therefore a small-`N` symmetry artifact or finite-size harmonic resonance, not a stable tensor sector
+    - this does not rescue emergent spin-2, but it does identify a sharper falsification target:
+      - any serious tensor claim now has to survive both topology controls and `N4 -> N5` carryover under the harmonic-background observable.
+
+- **Explicit mode decomposition of the `N4 cycle` harmonic signal**:
+  - new artifact:
+    - `outputs/harmonic_mode_decomposition_cycle_anchor_20260308/summary.csv`
+    - `outputs/harmonic_mode_decomposition_cycle_anchor_20260308/modes.csv`
+    - `outputs/harmonic_mode_decomposition_cycle_anchor_20260308/report.md`
+  - readout:
+    - `N4 cycle`:
+      - line-graph edge count is `4`
+      - shell count is `3`
+      - harmonic subtraction therefore removes the lowest `3` line-graph modes and leaves exactly `1` high mode
+      - the residual covariance has numeric rank `1`
+      - the surviving high-mode weight fraction is `1.0` at all tested lambdas
+      - harmonic TT power stays fixed at `2.536688` across all tested `lambda`
+    - `N5 cycle`:
+      - line-graph edge count is `5`
+      - shell count is still `3`
+      - the residual high-mode subspace therefore has dimension `2`
+      - the residual covariance has numeric rank `2`
+      - the two surviving high modes split the weight almost exactly `50/50`
+      - harmonic TT power drops to `0.338374`
+  - interpretation:
+    - this explicitly explains the `N4 cycle` harmonic signal as a one-mode leftover of the `C4` line-graph Laplacian after the low-mode projector is removed
+    - the fixed near-target power is therefore not tracking the physics of `lambda`; it is tracking the fact that the same single alternating mode is always left over
+    - `N5 cycle` breaks that special structure immediately because the residual high-mode space becomes two-dimensional
+    - this is strong evidence that the `N4 cycle` near-target harmonic signal is a small-`N` symmetry artifact, not a scalable tensor sector.
+
+- **Redteam verification of the March 8 tensor logs**:
+  - new artifacts:
+    - `outputs/source_mode_dependence_20260308/source_mode_summary.csv`
+    - `outputs/permutation_dependence_20260308/summary.csv`
+    - `outputs/harmonic_rank_dependence_20260308/summary.csv`
+    - `outputs/fit_fragility_harmonic_20260308/summary.csv`
+    - `outputs/harmonic_mode_decomposition_cycle_anchor_J001_20260308/report.md`
+    - `docs/decision_log_20260308_redteam.md`
+  - strongest corrections:
+    - the shell-TT log originally overstated the comparison to the older star correlator result:
+      - the newer TT observable does not reproduce the old star hint,
+      - rather than cleanly "killing" the same signal by subtraction
+    - covariance-background subtraction remains the most robust tested background definition:
+      - effectively permutation-stable
+      - effectively source-stable on the anchored cycle/star checks
+    - shell edge-field subtraction is the least robust:
+      - source / labeling sensitive on `N5 cycle`
+    - the `N4 cycle` harmonic result is not just an `N4 -> N5` carryover failure:
+      - it is also highly projector-rank sensitive
+      - and materially fit-resolution sensitive
+  - interpretation:
+    - after redteaming, the tensor verdict becomes stricter, not looser:
+      - no tested TT observable is simultaneously background-robust, topology-robust, and finite-size-stable
+    - the scalar/topology story therefore remains the strongest supported core result in the repo.

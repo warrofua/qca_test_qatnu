@@ -1,0 +1,4 @@
+scenario_id,N,topology,alpha,bond_cutoff,hotspot_multiplier,deltaB,kappa,backend,points,best_raw_lambda,best_raw_power,best_raw_residual,best_bg_lambda,best_bg_power,best_bg_residual,bg_minus_raw_residual,source_site_at_best_bg
+N5_cycle_alpha0.8,5,cycle,0.8,4,1.5,6.5,0.2,auto,2,0.6,-0.016053095623340324,2.0160530956233402,0.8,2.6635628595747783e-14,1.9999999999999734,-0.016053095623366875,3
+N5_path_alpha0.8,5,path,0.8,4,1.5,6.5,0.2,auto,2,0.6,-0.022786006161194503,2.0227860061611946,0.6,-4.072231950963148e-15,2.000000000000004,-0.02278600616119064,2
+N5_star_alpha0.8,5,star,0.8,4,1.5,6.5,0.2,auto,2,0.8,-0.13193066062233502,2.131930660622335,0.6,-6.803100539407295e-15,2.0000000000000067,-0.1319306606223285,0

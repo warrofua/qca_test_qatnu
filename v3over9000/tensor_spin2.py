@@ -50,6 +50,14 @@ class TensorSpin2Analyzer:
         return second - np.outer(mean_occ, mean_occ)
 
     @staticmethod
+    def _edge_tensor_basis(embedding: GraphEmbedding) -> tuple[np.ndarray, np.ndarray]:
+        eye3 = np.eye(3, dtype=float)
+        directions = embedding.edge_dir_xyz
+        q_tensors = np.einsum("ea,eb->eab", directions, directions) - (eye3[None, :, :] / 3.0)
+        mids = embedding.edge_mid_xy
+        return q_tensors, mids
+
+    @staticmethod
     def _tt_projector(khat: np.ndarray) -> np.ndarray:
         eye = np.eye(3, dtype=float)
         p = eye - np.outer(khat, khat)
@@ -89,12 +97,36 @@ class TensorSpin2Analyzer:
 
         embedding: GraphEmbedding = build_embedding(qca.N, topology_name, list(qca.edges))
         covariance = self._bond_covariance(qca, state)
+        return self.compute_spectrum_from_covariance(
+            covariance=covariance,
+            n=qca.N,
+            edges=list(qca.edges),
+            topology_name=topology_name,
+            n_modes=n_modes,
+            n_angles=n_angles,
+        )
 
-        # Q_e,ab = d_a d_b - delta_ab / 3.
-        eye3 = np.eye(3, dtype=float)
-        directions = embedding.edge_dir_xyz
-        q_tensors = np.einsum("ea,eb->eab", directions, directions) - (eye3[None, :, :] / 3.0)
-        mids = embedding.edge_mid_xy
+    def compute_spectrum_from_covariance(
+        self,
+        covariance: np.ndarray,
+        n: int,
+        edges: Iterable[Tuple[int, int]],
+        topology_name: str,
+        n_modes: int = 16,
+        n_angles: int = 24,
+    ) -> TTSpin2Spectrum:
+        edges = list(edges)
+        edge_count = len(edges)
+        if edge_count < 2 or covariance.size == 0:
+            return TTSpin2Spectrum(
+                k=np.zeros(0, dtype=float),
+                power=np.zeros(0, dtype=float),
+                n_angles=int(n_angles),
+                n_modes=int(n_modes),
+            )
+
+        embedding: GraphEmbedding = build_embedding(n, topology_name, edges)
+        q_tensors, mids = self._edge_tensor_basis(embedding)
 
         k_vals = self._k_grid(mids, n_modes=n_modes)
         if k_vals.size == 0:
@@ -125,6 +157,62 @@ class TensorSpin2Analyzer:
                 tt = self._tt_projector(khat)
                 # Positive semi-definite proxy in TT sector.
                 tt_power = np.real(np.einsum("abcd,abcd->", tt, corr))
+                powers.append(max(float(tt_power), 1e-20))
+
+            power_vals[idx] = float(np.mean(powers)) if powers else 1e-20
+
+        return TTSpin2Spectrum(
+            k=k_vals,
+            power=power_vals,
+            n_angles=int(len(angles)),
+            n_modes=int(len(k_vals)),
+        )
+
+    def compute_spectrum_from_edge_field(
+        self,
+        edge_field: np.ndarray,
+        n: int,
+        edges: Iterable[Tuple[int, int]],
+        topology_name: str,
+        n_modes: int = 16,
+        n_angles: int = 24,
+    ) -> TTSpin2Spectrum:
+        edges = list(edges)
+        field = np.asarray(edge_field, dtype=float)
+        if len(edges) < 2 or field.size != len(edges):
+            return TTSpin2Spectrum(
+                k=np.zeros(0, dtype=float),
+                power=np.zeros(0, dtype=float),
+                n_angles=int(n_angles),
+                n_modes=int(n_modes),
+            )
+
+        embedding: GraphEmbedding = build_embedding(n, topology_name, edges)
+        q_tensors, mids = self._edge_tensor_basis(embedding)
+        k_vals = self._k_grid(mids, n_modes=n_modes)
+        if k_vals.size == 0:
+            return TTSpin2Spectrum(
+                k=np.zeros(0, dtype=float),
+                power=np.zeros(0, dtype=float),
+                n_angles=int(n_angles),
+                n_modes=int(n_modes),
+            )
+
+        power_vals = np.zeros_like(k_vals, dtype=float)
+        angles = np.linspace(0.0, 2.0 * np.pi, num=max(int(n_angles), 6), endpoint=False)
+
+        for idx, kval in enumerate(k_vals):
+            powers = []
+            for theta in angles:
+                kvec = np.array([kval * np.cos(theta), kval * np.sin(theta), 0.0], dtype=float)
+                knorm = float(np.linalg.norm(kvec))
+                if knorm <= 1e-12:
+                    continue
+                khat = kvec / knorm
+                phase = np.exp(1j * (mids @ kvec[:2]))
+                tensor_amp = np.einsum("e,e,eab->ab", field, phase, q_tensors, optimize=True)
+                tt = self._tt_projector(khat)
+                tt_power = np.real(np.einsum("abcd,ab,cd->", tt, tensor_amp, np.conjugate(tensor_amp)))
                 powers.append(max(float(tt_power), 1e-20))
 
             power_vals[idx] = float(np.mean(powers)) if powers else 1e-20
@@ -184,4 +272,3 @@ class TensorSpin2Analyzer:
             "r2": float(r2),
             "fit_quality": bool(np.isfinite(r2) and r2 >= 0.25),
         }
-

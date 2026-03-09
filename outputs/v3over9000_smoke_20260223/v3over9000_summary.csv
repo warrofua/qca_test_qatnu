@@ -1,0 +1,3 @@
+model,N,topology,bond_cutoff,lambda_value,hotspot_multiplier,gamma_corr,gamma_corr_diag,spin2_measured_power,spin2_measured_slope,spin2_residual_power,spin2_r2,spin2_fit_quality,alpha_self_energy,alpha_fit_r2,alpha_fit_points
+baseline,3,path,3,0.4,1.2,0.0,0.0,-0.0008569781030111291,0.0008569781030111291,2.000856978103011,0.9953197251077484,True,0.0,0.0,3
+correlated,3,path,3,0.4,1.2,0.03,0.0,-0.002960369521499575,0.002960369521499575,2.0029603695214995,0.9953352347503769,True,5.317867321027988e-14,0.0,3

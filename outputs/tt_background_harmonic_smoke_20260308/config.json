@@ -1,0 +1,30 @@
+{
+  "auto_dense_threshold": 8000,
+  "backends": [
+    "auto"
+  ],
+  "bond_cutoffs": [
+    4
+  ],
+  "deltaBs": [
+    6.5
+  ],
+  "frustration_time": 1.0,
+  "hotspot_multipliers": [
+    1.5
+  ],
+  "kappas": [
+    0.2
+  ],
+  "lambdas": [
+    0.4
+  ],
+  "n_angles": 24,
+  "n_modes": 16,
+  "scenarios": [
+    "N4_star_alpha0.8",
+    "N4_path_alpha0.8",
+    "N4_cycle_alpha0.8"
+  ],
+  "source_mode": "lambda_max"
+}

@@ -87,6 +87,15 @@ def _parse_int_list(raw: str) -> List[int]:
     return vals
 
 
+def _estimate_dense_hamiltonian_gib(N: int, edge_count: int, bond_cutoff: int) -> tuple[int, float]:
+    """Estimate dense-H size for ExactQCA and return (total_dim, GiB)."""
+    matter_dim = 2**int(N)
+    bond_dim = int(bond_cutoff) ** max(int(edge_count), 0)
+    total_dim = matter_dim * bond_dim
+    dense_gib = (float(total_dim) * float(total_dim) * 8.0) / float(1024**3)
+    return int(total_dim), float(dense_gib)
+
+
 def _compute_spin2_point(payload: Dict[str, float | int | str]) -> Dict[str, float | int | str]:
     """
     Compute one scenario/lambda point for correlator-based spin-2 diagnostics.
@@ -197,6 +206,25 @@ def _plot_slope_vs_lambda(points: pd.DataFrame, out_dir: Path) -> Path:
 
 def _build_summary(points: pd.DataFrame) -> pd.DataFrame:
     rows: List[Dict[str, float | int | str]] = []
+    if points.empty:
+        return pd.DataFrame(
+            columns=[
+                "scenario_id",
+                "bond_cutoff",
+                "points",
+                "valid_points",
+                "best_lambda",
+                "best_slope",
+                "best_power",
+                "best_target_error",
+                "mean_target_error",
+                "median_target_error",
+                "skip_reason",
+                "estimated_dense_gib",
+                "estimated_total_dim",
+            ]
+        )
+
     for (scenario_id, cutoff), subset in points.groupby(["scenario_id", "bond_cutoff"]):
         subset = subset.sort_values("lambda")
         valid = subset[np.isfinite(subset["spin2_power"])]
@@ -213,6 +241,9 @@ def _build_summary(points: pd.DataFrame) -> pd.DataFrame:
                     "best_target_error": None,
                     "mean_target_error": None,
                     "median_target_error": None,
+                    "skip_reason": None,
+                    "estimated_dense_gib": None,
+                    "estimated_total_dim": None,
                 }
             )
             continue
@@ -231,6 +262,9 @@ def _build_summary(points: pd.DataFrame) -> pd.DataFrame:
                 "best_target_error": float(best["spin2_target_error"]),
                 "mean_target_error": float(valid["spin2_target_error"].mean()),
                 "median_target_error": float(valid["spin2_target_error"].median()),
+                "skip_reason": None,
+                "estimated_dense_gib": None,
+                "estimated_total_dim": None,
             }
         )
     out = pd.DataFrame(rows).sort_values(
@@ -246,6 +280,8 @@ def _write_report(
     summary: pd.DataFrame,
     plot_path: Path,
     config: Dict[str, float | int | str],
+    skipped_path: Path | None = None,
+    errors_path: Path | None = None,
 ) -> Path:
     lines: List[str] = []
     lines.append("# Spin-2 Correlator Topology Sweep")
@@ -261,10 +297,23 @@ def _write_report(
     lines.append(f"- kappa: {config['kappa']}")
     lines.append(f"- k0: {config['k0']}")
     lines.append(f"- virtual_size: {config['virtual_size']}")
+    lines.append(f"- max_dense_gib: {config['max_dense_gib']}")
     lines.append("")
     lines.append("## Ranked scenarios (closest to slope -2)")
     lines.append("")
     for _, row in summary.iterrows():
+        skip_reason = row.get("skip_reason")
+        if isinstance(skip_reason, str) and skip_reason.strip():
+            dense_gib = row.get("estimated_dense_gib")
+            total_dim = row.get("estimated_total_dim")
+            dense_text = (
+                f", est dense H={dense_gib:.2f} GiB" if pd.notna(dense_gib) else ""
+            )
+            dim_text = f", total_dim={int(total_dim)}" if pd.notna(total_dim) else ""
+            lines.append(
+                f"- {row['scenario_id']} (chi={int(row['bond_cutoff'])}): skipped ({skip_reason}{dense_text}{dim_text})"
+            )
+            continue
         lines.append(
             "- {sid} (chi={chi}): best λ={lam}, best slope={slope}, |power-2|={err:.3f}, mean |power-2|={mean_err:.3f}".format(
                 sid=row["scenario_id"],
@@ -281,6 +330,10 @@ def _write_report(
     lines.append(f"- points CSV: `{out_dir / 'spin2_points.csv'}`")
     lines.append(f"- summary CSV: `{out_dir / 'spin2_summary.csv'}`")
     lines.append(f"- slope plot: `{plot_path}`")
+    if skipped_path is not None:
+        lines.append(f"- skipped CSV: `{skipped_path}`")
+    if errors_path is not None:
+        lines.append(f"- errors CSV: `{errors_path}`")
     lines.append("")
     report_path = out_dir / "spin2_report.md"
     report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -302,14 +355,49 @@ def run_sweep(
     virtual_size: int,
     workers: int,
     output_dir: Path,
+    max_dense_gib: float,
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     cutoff_values = sorted({int(c) for c in bond_cutoffs})
     if not cutoff_values:
         raise ValueError("bond_cutoffs must include at least one value.")
     tasks: List[Dict[str, float | int | str]] = []
+    skipped_rows: List[Dict[str, float | int | str]] = []
     for scenario in scenarios:
+        topology_spec = get_topology(scenario.topology, scenario.N)
+        edge_count = len(topology_spec.edges)
         for cutoff in cutoff_values:
+            total_dim, dense_gib = _estimate_dense_hamiltonian_gib(
+                N=scenario.N,
+                edge_count=edge_count,
+                bond_cutoff=int(cutoff),
+            )
+            if max_dense_gib > 0.0 and dense_gib > max_dense_gib:
+                reason = (
+                    f"dense_H_estimate_exceeds_limit ({dense_gib:.2f} GiB > {max_dense_gib:.2f} GiB)"
+                )
+                print(
+                    f"[skip] {scenario.scenario_id} chi={cutoff}: {reason}, total_dim={total_dim}",
+                    flush=True,
+                )
+                skipped_rows.append(
+                    {
+                        "scenario_id": scenario.scenario_id,
+                        "bond_cutoff": int(cutoff),
+                        "points": 0,
+                        "valid_points": 0,
+                        "best_lambda": None,
+                        "best_slope": None,
+                        "best_power": None,
+                        "best_target_error": None,
+                        "mean_target_error": None,
+                        "median_target_error": None,
+                        "skip_reason": reason,
+                        "estimated_dense_gib": dense_gib,
+                        "estimated_total_dim": total_dim,
+                    }
+                )
+                continue
             for lam in lambdas:
                 tasks.append(
                     {
@@ -331,28 +419,80 @@ def run_sweep(
                 )
 
     rows: List[Dict[str, float | int | str]] = []
-    print(f"Running {len(tasks)} spin-2 points with {workers} workers...", flush=True)
-    with ProcessPoolExecutor(max_workers=workers) as executor:
-        futures = [executor.submit(_compute_spin2_point, payload) for payload in tasks]
-        total = len(futures)
-        for idx, future in enumerate(as_completed(futures), start=1):
-            row = future.result()
-            rows.append(row)
-            print(
-                f"[{idx}/{total}] {row['scenario_id']} λ={float(row['lambda']):.3f} "
-                f"chi={int(row['bond_cutoff'])} slope={float(row['spin2_slope']):.3f} method={row['method']}",
-                flush=True,
-            )
+    error_rows: List[Dict[str, float | int | str]] = []
+    print(
+        f"Running {len(tasks)} spin-2 points with {workers} workers "
+        f"(skipped presets: {len(skipped_rows)})...",
+        flush=True,
+    )
+    if tasks:
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            futures = {executor.submit(_compute_spin2_point, payload): payload for payload in tasks}
+            total = len(futures)
+            for idx, future in enumerate(as_completed(futures), start=1):
+                payload = futures[future]
+                try:
+                    row = future.result()
+                    rows.append(row)
+                    print(
+                        f"[{idx}/{total}] {row['scenario_id']} λ={float(row['lambda']):.3f} "
+                        f"chi={int(row['bond_cutoff'])} slope={float(row['spin2_slope']):.3f} method={row['method']}",
+                        flush=True,
+                    )
+                except Exception as exc:
+                    err_row = {
+                        "scenario_id": str(payload["scenario_id"]),
+                        "N": int(payload["N"]),
+                        "topology": str(payload["topology"]),
+                        "alpha": float(payload["alpha"]),
+                        "lambda": float(payload["lambda"]),
+                        "bond_cutoff": int(payload["bond_cutoff"]),
+                        "error": str(exc),
+                    }
+                    error_rows.append(err_row)
+                    print(
+                        f"[{idx}/{total}] error {err_row['scenario_id']} λ={err_row['lambda']:.3f} "
+                        f"chi={err_row['bond_cutoff']}: {err_row['error']}",
+                        flush=True,
+                    )
 
-    points = pd.DataFrame(rows).sort_values(["scenario_id", "bond_cutoff", "lambda"])
+    points = pd.DataFrame(rows)
+    if not points.empty:
+        points = points.sort_values(["scenario_id", "bond_cutoff", "lambda"])
     points_path = output_dir / "spin2_points.csv"
     points.to_csv(points_path, index=False)
 
     summary = _build_summary(points)
+    if skipped_rows:
+        skipped_df = pd.DataFrame(skipped_rows)
+        summary = skipped_df if summary.empty else pd.concat([summary, skipped_df], ignore_index=True, sort=False)
+    if not summary.empty:
+        summary = summary.sort_values(
+            ["best_target_error", "mean_target_error", "scenario_id", "bond_cutoff"],
+            na_position="last",
+        )
     summary_path = output_dir / "spin2_summary.csv"
     summary.to_csv(summary_path, index=False)
 
-    plot_path = _plot_slope_vs_lambda(points, output_dir)
+    plot_path = _plot_slope_vs_lambda(points, output_dir) if not points.empty else (output_dir / "spin2_slope_vs_lambda.png")
+    if points.empty:
+        plt.figure(figsize=(9, 6))
+        plt.title("Correlator Spin-2 Slope vs Lambda")
+        plt.text(0.5, 0.5, "No computed points (all skipped/failed)", ha="center", va="center")
+        plt.axis("off")
+        plt.tight_layout()
+        plt.savefig(plot_path, dpi=220, bbox_inches="tight")
+        plt.close()
+
+    skipped_path: Path | None = None
+    if skipped_rows:
+        skipped_path = output_dir / "spin2_skipped.csv"
+        pd.DataFrame(skipped_rows).to_csv(skipped_path, index=False)
+
+    errors_path: Path | None = None
+    if error_rows:
+        errors_path = output_dir / "spin2_errors.csv"
+        pd.DataFrame(error_rows).to_csv(errors_path, index=False)
 
     report_path = _write_report(
         out_dir=output_dir,
@@ -367,15 +507,25 @@ def run_sweep(
             "kappa": kappa,
             "k0": k0,
             "virtual_size": virtual_size,
+            "max_dense_gib": max_dense_gib,
         },
+        skipped_path=skipped_path,
+        errors_path=errors_path,
     )
 
     print("\nSweep completed.")
-    print(summary.to_string(index=False))
+    if not summary.empty:
+        print(summary.to_string(index=False))
+    else:
+        print("(no summary rows)")
     print(f"\nOUTPUT_DIR={output_dir}")
     print(f"POINTS={points_path}")
     print(f"SUMMARY={summary_path}")
     print(f"PLOT={plot_path}")
+    if skipped_path is not None:
+        print(f"SKIPPED={skipped_path}")
+    if errors_path is not None:
+        print(f"ERRORS={errors_path}")
     print(f"REPORT={report_path}")
 
 
@@ -409,6 +559,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--J0", type=float, default=0.01, help="Ising coupling")
     parser.add_argument("--virtual-size", type=int, default=256, help="Virtual lattice size for PSD")
     parser.add_argument("--workers", type=int, default=max(1, min(6, os.cpu_count() or 1)), help="Worker count")
+    parser.add_argument(
+        "--max-dense-gib",
+        type=float,
+        default=32.0,
+        help="Skip scenario/cutoff where estimated dense Hamiltonian exceeds this GiB (<=0 disables).",
+    )
     parser.add_argument("--output-dir", type=str, default="", help="Optional output directory")
     return parser.parse_args()
 
@@ -442,6 +598,7 @@ def main() -> None:
         virtual_size=int(args.virtual_size),
         workers=max(1, int(args.workers)),
         output_dir=out_dir,
+        max_dense_gib=float(args.max_dense_gib),
     )
 
 

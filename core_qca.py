@@ -59,6 +59,20 @@ class ExactQCA:
         if self.hamiltonian_mode not in {"dense", "sparse"}:
             raise ValueError(f"Unsupported hamiltonian_mode '{hamiltonian_mode}'")
         self.edge_count = len(self.edges)
+        self.gamma_corr = float(self.config.get("gamma_corr", 0.0))
+        self.gamma_corr_diag = float(self.config.get("gamma_corr_diag", 0.0))
+        self._correlated_pairs: Optional[List[Tuple[int, int]]] = None
+        raw_lambda_edge_weights = self.config.get("lambda_edge_weights")
+        if raw_lambda_edge_weights is None:
+            self.lambda_edge_weights = np.ones(self.edge_count, dtype=np.float64)
+        else:
+            weights = np.asarray(raw_lambda_edge_weights, dtype=np.float64)
+            if weights.shape != (self.edge_count,):
+                raise ValueError(
+                    "lambda_edge_weights must have one entry per edge "
+                    f"(expected {self.edge_count}, got {weights.shape})"
+                )
+            self.lambda_edge_weights = weights
 
         self.matter_dim = 2**N
         if self.edge_count > 0:
@@ -103,7 +117,21 @@ class ExactQCA:
             )
         return matter_state * self.bond_dim + bond_index
 
+    def _get_correlated_pairs(self) -> List[Tuple[int, int]]:
+        if self._correlated_pairs is not None:
+            return self._correlated_pairs
+
+        pairs: List[Tuple[int, int]] = []
+        for edge_a, (u_a, v_a) in enumerate(self.edges):
+            for edge_b in range(edge_a + 1, self.edge_count):
+                u_b, v_b = self.edges[edge_b]
+                if u_a in (u_b, v_b) or v_a in (u_b, v_b):
+                    pairs.append((edge_a, edge_b))
+        self._correlated_pairs = pairs
+        return pairs
+
     def _hamiltonian_entries(self) -> Iterable[Tuple[int, int, float]]:
+        correlated_pairs = self._get_correlated_pairs()
         for idx in range(self.total_dim):
             matter_state = idx // self.bond_dim
             bond_config = self.decode_bond_config(idx % self.bond_dim)
@@ -129,7 +157,7 @@ class ExactQCA:
                 diag_val += float(self.config["kappa"]) * penalty
 
                 F = 0.5 * (1.0 - Zi * Zj)
-                lam_f = float(self.config["lambda"]) * float(F)
+                lam_f = float(self.config["lambda"]) * float(self.lambda_edge_weights[edge_idx]) * float(F)
 
                 if self.edge_count > 0:
                     if bond_config[edge_idx] < self.bond_cutoff - 1:
@@ -143,6 +171,37 @@ class ExactQCA:
                         new_config[edge_idx] -= 1
                         jdx = self.state_index(matter_state, new_config)
                         yield idx, jdx, lam_f
+
+            if self.edge_count > 0 and correlated_pairs:
+                for edge_a, edge_b in correlated_pairs:
+                    site_a0, site_a1 = self.edges[edge_a]
+                    site_b0, site_b1 = self.edges[edge_b]
+                    f_a = 0.5 * (1.0 - Z_vals[site_a0] * Z_vals[site_a1])
+                    f_b = 0.5 * (1.0 - Z_vals[site_b0] * Z_vals[site_b1])
+                    amplitude = self.gamma_corr * f_a * f_b
+
+                    if self.gamma_corr_diag != 0.0:
+                        diag_val += self.gamma_corr_diag * bond_config[edge_a] * bond_config[edge_b]
+
+                    if amplitude == 0.0:
+                        continue
+
+                    if (
+                        bond_config[edge_a] < self.bond_cutoff - 1
+                        and bond_config[edge_b] < self.bond_cutoff - 1
+                    ):
+                        new_config = bond_config.copy()
+                        new_config[edge_a] += 1
+                        new_config[edge_b] += 1
+                        jdx = self.state_index(matter_state, new_config)
+                        yield idx, jdx, amplitude
+
+                    if bond_config[edge_a] > 0 and bond_config[edge_b] > 0:
+                        new_config = bond_config.copy()
+                        new_config[edge_a] -= 1
+                        new_config[edge_b] -= 1
+                        jdx = self.state_index(matter_state, new_config)
+                        yield idx, jdx, amplitude
 
             yield idx, idx, diag_val
 

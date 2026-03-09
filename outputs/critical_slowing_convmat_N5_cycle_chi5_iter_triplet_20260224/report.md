@@ -1,0 +1,36 @@
+# Critical Slowing Scan
+
+Generated: 2026-02-24T11:20:59
+
+## Configuration
+- N: 5
+- topologies: cycle
+- lambdas: cycle:0.55,0.61,0.65
+- bond_cutoff: 5
+- hotspot_multiplier: 3.0
+- t_max: 60.0
+- n_times: 100
+- lambda_proxy: log
+- tail_frac: 0.2
+- rel_tol: 0.08
+- sustain_points: 8
+- min_scale: 1e-08
+- solver_backend: iterative
+- auto_dense_threshold: 12000
+- iterative_tol: 5e-08
+- iterative_maxiter: 0
+
+## Summary
+
+```csv
+topology,backend,hamiltonian_mode,lambda,tau_eq_global,tau_eq_probe,tau_dephase_global,tau_dephase_probe,tau_eq_site_var,tau_dephase_site_var,tau_eq_mode1,tau_dephase_mode1,tau_eq_mode_dom,tau_dephase_mode_dom,tail_mean_global,tail_std_global,threshold_global,tail_mean_probe,tail_std_probe,threshold_probe,tail_mean_site_var,tail_std_site_var,threshold_site_var,tail_mean_mode1,tail_std_mode1,threshold_mode1,tail_mean_mode_dom,tail_std_mode_dom,threshold_mode_dom,final_global_lambda,final_probe_gap,max_abs_probe_gap,final_site_var,final_mode1_amp,final_mode_dom_amp,max_abs_mode1_amp,max_abs_mode_dom_amp,mode1_index,mode_dom_index,mode1_eigval,mode_dom_eigval,dim_nominal,dim_hotspot
+cycle,iterative,sparse,0.55,,,4.848484848484849,15.757575757575758,,,,10.90909090909091,,10.90909090909091,0.31548251338271266,0.0794150260045275,0.021996039367795647,-7.690240999558284e-10,5.539504870866786e-09,1.2684371446525234e-09,1.52238376605068e-17,1.5782225182756652e-17,,-7.806871044676568e-10,7.396807757001811e-09,1.2529608540767198e-09,-7.806871044676568e-10,7.396807757001811e-09,1.2529608540767198e-09,0.37854346440812836,-9.426800451350914e-10,1.5086440208200713e-08,3.2456034924915145e-18,2.5196072770145708e-09,2.5196072770145708e-09,1.6442697780426653e-08,1.6442697780426653e-08,1,1,1.3819660112501047,1.3819660112501047,100000,100000
+cycle,iterative,sparse,0.61,,,9.090909090909092,,,,,,,,0.3627006345658237,0.1053306555898663,0.025027413658311924,-1.7811230546005418e-10,1.0315696613923318e-09,,9.06105286849074e-19,7.174890285288686e-19,,3.799055356052179e-11,9.201957742817199e-10,,-3.7836940128271784e-10,1.8689155057113277e-09,,0.5458870444815227,-1.898950219292317e-09,2.7502052857286685e-09,2.7621552851215086e-18,5.121750829133828e-10,-3.6729231169943938e-09,2.275422740383031e-09,4.05813678504483e-09,1,2,1.3819660112501047,1.3819660112501055,100000,100000
+cycle,iterative,sparse,0.65,,,6.0606060606060606,,,,,,,,0.3650223517598199,0.0948694934595414,0.02467342363049332,-1.1212499401169751e-10,1.2035299276032334e-09,,2.487392390366429e-18,1.9373569779181728e-18,,5.331273697818733e-10,3.257589336430981e-09,,5.331273697818733e-10,3.257589336430981e-09,,0.2170372572692454,-6.340473701627047e-10,3.335201337328897e-09,5.470267975386072e-19,1.1622169173964745e-09,1.1622169173964745e-09,6.5184033541525645e-09,6.5184033541525645e-09,1,1,1.3819660112501047,1.3819660112501047,100000,100000
+```
+
+## Artifacts
+- `outputs/critical_slowing_convmat_N5_cycle_chi5_iter_triplet_20260224/summary.csv`
+- `outputs/critical_slowing_convmat_N5_cycle_chi5_iter_triplet_20260224/tau_eq_probe_vs_lambda.png`
+- `outputs/critical_slowing_convmat_N5_cycle_chi5_iter_triplet_20260224/tau_dephase_vs_lambda.png`
+- `outputs/critical_slowing_convmat_N5_cycle_chi5_iter_triplet_20260224/timeseries_samples.json`

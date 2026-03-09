@@ -1,0 +1,13 @@
+hotspot_multiplier,chi,topology,metric,peak_lambda,peak_tau
+2.0,4,cycle,tau_dephase_global,0.61,4.848484848484849
+2.0,4,path,tau_dephase_probe,1.0,7.878787878787879
+2.0,4,star,tau_dephase_probe,1.55,7.878787878787879
+4.0,4,cycle,tau_dephase_global,0.61,36.96969696969697
+4.0,4,path,tau_dephase_probe,1.0,9.696969696969695
+4.0,4,star,tau_dephase_probe,1.7,15.151515151515152
+2.0,5,cycle,tau_dephase_global,0.61,4.848484848484849
+2.0,5,path,tau_dephase_probe,1.0,7.878787878787879
+2.0,5,star,tau_dephase_probe,1.55,7.878787878787879
+4.0,5,cycle,tau_dephase_global,0.61,24.848484848484848
+4.0,5,path,tau_dephase_probe,1.0,17.575757575757578
+4.0,5,star,tau_dephase_probe,1.55,17.575757575757578

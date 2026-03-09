@@ -1,0 +1,2 @@
+N,topology,alpha,lambda,gamma_corr,gamma_corr_effective,gamma_mode,bond_cutoff,hotspot_multiplier,spin2_measured_power,spin2_measured_slope,spin2_residual_power,spin2_r2,spin2_fit_quality,postulate_residual,lambda_out,lambda_in,omega_out,omega_in,pred_out,pred_in,num_k_modes,num_k_angles
+5,star,0.8,0.8,-0.25,0.0,taper_high,4,1.5,-0.04259346539017206,0.04259346539017206,2.042593465390172,0.9823541946484661,True,0.40942930491376806,0.731923685988012,0.22059376191817961,0.6152285613280012,1.0810380056474234,0.6307003689583842,0.8499968056232969,8,12

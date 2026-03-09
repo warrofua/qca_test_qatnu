@@ -1,0 +1,694 @@
+
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{mathtools}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{float}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  citecolor=blue!50!black,
+  urlcolor=blue!50!black,
+  pdftitle={SRQID/QATNU as a Unitary Lattice Testbed for Emergent Gravity},
+  pdfauthor={OpenAI for the user}
+}
+
+\setlength{\parskip}{0.5em}
+\setlength{\parindent}{0pt}
+\setlist[itemize]{leftmargin=1.5em, itemsep=0.2em, topsep=0.3em}
+\setlist[enumerate]{leftmargin=1.6em, itemsep=0.2em, topsep=0.3em}
+\setlength{\emergencystretch}{3em}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+\title{\textbf{SRQID/QATNU as a Unitary Lattice Testbed for Emergent Gravity:}\\
+\textbf{Consolidated 2026 Status, Topology Dependence, and Open Tensor Problems}}
+\author{Prepared from the repository papers, decision logs, and current docs}
+\date{March 9, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This paper is a full rewrite of the current SRQID/QATNU story after the February--March 2026 decision-log cycle. Its purpose is not to maximize ambition, but to state as cleanly as possible what is established, what has advanced, and what must be downgraded to conjecture. The stable core is a strictly unitary, measurement-free, bounded-degree lattice model with frustration-controlled bond promotions, strong numerical causality checks, and a reproducible small-$N$ constitutive clock law
+\[
+\omega_{\mathrm{eff}}^{(i)} = \frac{\omega}{1+\alpha \Lambda_i}.
+\]
+The most important advances relative to the 2025 papers are: explicit non-1D topology studies, deep-time critical-slowing diagnostics, perturbative and self-energy routes toward interpreting $\alpha$ as a response coefficient, an iterative backend that makes higher-cutoff $N=5$ scans practical, and a much stricter tensor-diagnostic program. The most important negative result is that several stronger earlier claims do not survive scrutiny in their original form: phase landmarks shift materially under hotspot preparation and phenomenological knobs, no-retuning topology transfer fails, the original $\chi$-based spin-2 evidence does not hold up, and the newer bond-correlator hint does not survive the March 2026 background-subtracted TT checks as a robust tensor sector. The correct present reading is therefore conservative: SRQID/QATNU is a falsifiable unitary lattice testbed for scalar clock renormalization and topology-conditioned emergent geometry, while a genuine universal tensor sector, continuum closure, and large-scale phenomenology remain open.
+\end{abstract}
+
+\section{Introduction}
+
+The repository now contains four layers of narrative that must be reconciled:
+
+\begin{enumerate}
+    \item the August 2025 SRQID draft, which emphasized a local, measurement-free Hamiltonian foundation;
+    \item the August 2025 QATNU draft, which pushed much further into gauge, spin-2, and phenomenological claims;
+    \item the November 2025 status paper, which reframed the program around the effective clock law now called Postulate~1;
+    \item the February--March 2026 decision logs and results updates, which added non-1D topology scans, new tensor proxies, deep-time observables, backend changes, stronger falsification controls, and several negative robustness results.
+\end{enumerate}
+
+The older papers were directionally useful, but they are no longer the best single statement of the project. Some parts have become stronger since then, especially the scalar and topology-dependent numerical story. Other parts have become weaker, especially universality claims and the tensor interpretation.
+
+This rewrite therefore adopts four rules.
+
+First, the paper tracks the \emph{implemented} model and protocol, not only the historical proposal language.
+
+Second, it distinguishes three epistemic tiers:
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Tier & Meaning & How it is treated here \\
+\midrule
+Established & directly supported by the current code and logs & main claim \\
+Indicated & supported, but protocol- or topology-dependent & cautious main text \\
+Conjectural & not yet closed by current evidence & outlook only \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Third, it treats failure as informative rather than embarrassing. The no-retuning holdout failure, the hotspot sensitivity, and the topology dependence are not peripheral issues; they are the present scientific content.
+
+Fourth, it separates the scalar background problem from the tensor problem. The scalar clock-renormalization story is currently much stronger than the spin-2 story, and the paper is organized accordingly.
+
+\section{Canonical model and operational protocol}
+
+\subsection{Implemented Hamiltonian}
+
+The August SRQID draft proposed a family of local Hamiltonians of the schematic form
+\[
+H = H_{\mathrm{mat}} + H_{\mathrm{bond}} + H_{\mathrm{int}},
+\]
+with matter qubits on vertices, bond registers on edges, local frustration tiles, soft bounded-degree penalties, and ladder operators that coherently promote or demote bond rungs. In the historical SRQID notation one convenient choice was
+\begin{equation}
+H_{\mathrm{hist}}
+=
+\frac{\omega}{2}\sum_i X_i
++
+\sum_{\langle i,j\rangle}\bigl(J_0 Z_i Z_j + \Delta_b n_{ij}\bigr)
++
+g\sum_{\langle i,j\rangle}F_{ij}\tau^x_{ij}
++
+\kappa\sum_{\langle i,j\rangle}C_{ij}
++
+\lambda\sum_{\langle i,j\rangle}F_{ij}(R_{ij}+R^\dagger_{ij}).
+\label{eq:Hhist}
+\end{equation}
+
+The current production workflow is slightly more specific. The exact-diagonalization engine used in the repository is built around the directly implemented Hamiltonian
+\begin{equation}
+H_{\mathrm{impl}}
+=
+\frac{\omega}{2}\sum_i X_i
++
+J_0 \sum_{e=\langle i,j\rangle} Z_i Z_j
++
+\delta_B \sum_e n_e
++
+\kappa \sum_{e=\langle i,j\rangle}\Big[(d_i-k_0)^2 + (d_j-k_0)^2\Big]
++
+\lambda \sum_{e=\langle i,j\rangle} F_e \bigl(R_e + R_e^\dagger\bigr),
+\label{eq:Himpl}
+\end{equation}
+where
+\[
+F_e = \frac{1}{2}(1-Z_i Z_j).
+\]
+Here $n_e$ is the rung occupation on edge $e$, $R_e$ is the rung-raising isometry, $d_i$ is the active local degree at vertex $i$, and $k_0$ is the soft degree target. Equation~\eqref{eq:Himpl} is the model actually scanned in the current workflow; Eq.~\eqref{eq:Hhist} should be read as the broader historical envelope.
+
+This distinction matters. Earlier papers sometimes treated the family of Hamiltonians as if it were already locked to one canonical form. The repository state shows instead that the present numerics are tied to a specific implemented realization of the more general SRQID/QATNU idea.
+
+\subsection{Operational observables}
+
+The key scalar observable is the local promotion-depth proxy $\Lambda_i$. In the analytic notes this is often written in bond-occupation language,
+\begin{equation}
+\Lambda_i \sim \sum_{j\in \partial i}\log\!\bigl(1+\langle n_{ij}\rangle\bigr),
+\label{eq:Lambda-bond}
+\end{equation}
+which reduces to a linear occupation sum in the dilute regime. In the codebase, related depth-style observables are exported under names such as measured depth, measured lambda, or local circuit-depth proxy. The February 25 semantic check showed that the old and new \texttt{tester.py} semantics are numerically identical at the canonical comparison point, so the present issue is not a bug but an unresolved unification of language and proxy choice.
+
+Throughout this paper, $\Lambda_i$ means the \emph{operational scalar depth proxy used by the production workflow}. Where analytic formulas use bond occupations, they should be interpreted as dilute-regime approximations to that operational object, not as a fully closed derivation of a unique continuum field.
+
+The scalar constitutive law is Postulate~1:
+\begin{equation}
+\omega_{\mathrm{eff}}^{(i)}
+=
+\frac{\omega}{1+\alpha \Lambda_i}.
+\label{eq:postulate1}
+\end{equation}
+The November 2025 status paper correctly identified this law as the practical bridge between the microscopic simulator and the emergent-clock story. The February 2026 results do not remove that bridge, but they do force a narrower interpretation: Eq.~\eqref{eq:postulate1} is a useful small-$N$ constitutive law whose parameters and landmarks depend on topology and preparation protocol.
+
+\subsection{Preparation and readout protocols}
+
+Current scans follow a two-stage ``geometry from source'' protocol.
+
+\begin{enumerate}
+    \item Start from the ground state of the many-body Hamiltonian.
+    \item Create a frustrated background by evolving under a hotspot promotion strength
+    \[
+    \lambda_{\mathrm{hot}} = h\,\lambda,
+    \]
+    where $h$ is the hotspot multiplier and the current default is $h=3.0$.
+    \item Measure inner and outer scalar depth proxies from that promoted background.
+    \item Compare measured clock frequencies to the Postulate~1 prediction.
+\end{enumerate}
+
+Two clock protocols exist.
+
+\begin{itemize}
+    \item \textbf{Protocol A (test clocks):} Ramsey probes are $\pi/2$ excitations on the ground state, so the promoted background acts as a source but not as the clock substrate itself.
+    \item \textbf{Protocol B (embedded clocks):} with \texttt{--embedded-clocks}, the probes are excited directly on the promoted background to test the breakdown of the cleaner test-clock picture.
+\end{itemize}
+
+This operational split is important for interpretation. The present phase diagrams are not pristine vacuum observables; they are observables extracted from a prepared source background plus a chosen clock protocol.
+
+\subsection{Phase landmarks and deep-time observables}
+
+The repository now uses the following landmarks.
+
+\begin{itemize}
+    \item $\lambda_{c1}$: onset of curvature or noticeable residual growth,
+    \item $\lambda_{\mathrm{rev}}$: revival point, reported using the \emph{global post-violation minimum} as the official definition,
+    \item $\lambda_{c2}$: onset of catastrophic or strongly inverted behavior.
+\end{itemize}
+
+The February 2026 updates added a second class of observables: deep-time dephasing or critical-slowing diagnostics based on topology-aware channels. These include probe dephasing, global dephasing, spatial variance of $\Lambda_i(t)$, and Laplacian-mode amplitudes. A major methodological improvement was to treat symmetry-suppressed near-zero channels as non-informative rather than as spurious long-time peaks.
+
+\section{Established results that survive the rewrite}
+
+\subsection{Structural backbone: locality, unitarity, and numerical causality}
+
+The most durable part of the program is the local, measurement-free backbone.
+
+The August SRQID paper already made the right conservative claim: finite-range, bounded-degree, bounded-norm interactions imply Lieb-Robinson causal control, and the Hamiltonian is fixed, linear, and time-independent. The historical validation set reported a Lieb-Robinson velocity near $2.071$, no-signalling deviations of order $10^{-15}$, and energy drift at machine precision.
+
+Those claims remain compatible with the current workflow. Recent scans on concrete topologies again show numerically tiny no-signalling deviations and energy drift, while the extracted effective Lieb-Robinson scale varies sensibly with topology rather than disappearing. The cycle graph is faster than the path, while the star is slower, exactly as one would expect from degree structure rather than from numerical pathology.
+
+This is the first place where the project is already scientifically clean. Regardless of what happens to the ambitious emergent-gravity claims, SRQID/QATNU remains a well-defined family of local unitary lattice models with strong causal numerics.
+
+\subsection{Scalar clock renormalization remains the main positive result}
+
+The current repository still supports the claim that local clock rates are approximately renormalized by a scalar promotion-depth field.
+
+Table~\ref{tab:anchors} collects the clearest small-$N$ anchors presently documented in the repository.
+
+\begin{table}[H]
+\centering
+\caption{Representative scalar-sector anchors from the current repository docs. Residuals are protocol-dependent and should not be over-read as universal constants.}
+\label{tab:anchors}
+\small
+\begin{tabularx}{\textwidth}{@{}C{1.6cm}C{1.2cm}C{1.45cm}C{1.45cm}C{1.45cm}Y@{}}
+\toprule
+Topology & $N$ & $\lambda_{c1}$ & $\lambda_{\mathrm{rev}}$ & $\lambda_{c2}$ & Comment \\
+\midrule
+Path & 4 & $\approx 0.203$ & $\approx 1.058$ & $\approx 1.095$ & canonical path run; residual floor about $13.4\%$ at revival \\
+Path & 5 & $\approx 0.232$ & $\approx 0.338$ & $\approx 1.033$ & same constitutive picture persists, with shifted landmarks and smaller residual floor \\
+Cycle & 4 & $\approx 0.261$ & $\approx 0.486$ & $\approx 1.0$ & revival is nearly exact by symmetry in the documented run \\
+Star & 4 & $\approx 0.164$ & $\approx 1.30$ & $\approx 1.40$ & hub accumulates $\Lambda$ early; revival remains visibly imperfect \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The right conclusion is not that the program has derived general relativity from a lattice. The right conclusion is that the simulator repeatedly exhibits a reproducible, topology-sensitive scalar slowdown law whose best low-residual windows can be organized by Eq.~\eqref{eq:postulate1}.
+
+That is already nontrivial. It survives the rewrite.
+
+\subsection{Non-1D topology is now part of the evidence, not future work}
+
+One of the clearest advances since the 2025 papers is that the project is no longer just a path-chain story.
+
+The repository now includes path, cycle, diamond, bowtie, and star-like graphs in the main workflow. The existing documented runs already show that topology is not a small perturbation. Even at $N=4$, the cycle shifts $\lambda_{c1}$ to the right and produces a near-perfect revival, while the star shifts $\lambda_{c1}$ to the left and pushes the best revival to much larger $\lambda$ with noticeably larger residuals. These are not tiny corrections around a universal chain picture; they are first-order features of the present data.
+
+This is good news scientifically, even though it weakens older universal narratives. A model that claims geometry matters should in fact show strong geometry dependence.
+
+\subsection{Deep-time critical slowing is real, but topology-selective}
+
+The February 24--25 updates added a new class of dynamical evidence: topology-aware critical-slowing peaks measured from long-time dephasing observables.
+
+The refined $N=4$ readout gives:
+\begin{itemize}
+    \item path peak near $\lambda \approx 1.12$ in probe and dominant-mode channels,
+    \item star peak near $\lambda \approx 1.30$ in the same informative channels,
+    \item cycle peak near $\lambda \approx 0.49$ only in the global channel because the probe/mode channels are symmetry-suppressed.
+\end{itemize}
+
+At $N=5$, the carryover is not universal:
+\begin{itemize}
+    \item path stays near $\lambda \approx 1.10$ and then $\approx 1.0$ in the higher-cutoff anchor matrix,
+    \item cycle shifts upward to $\lambda \approx 0.61$ and is cutoff-stable in the documented matrix,
+    \item star shifts upward to roughly the $1.5$--$1.6$ region and remains the main convergence-sensitive case.
+\end{itemize}
+
+The important scientific point is that deep-time slowing exists, but it organizes by topology and by observable channel. The old hope for a single universal revival-locked scale across topologies is not supported by the present dataset.
+
+\section{What genuinely advanced in the February--March 2026 update cycle}
+
+\subsection{The tensor program became much sharper, but its current verdict is still negative}
+
+The original $\chi$-profile power spectral density used in late-2025 writeups was too weak to bear much interpretive weight. In the current docs it is explicitly underperforming relative to the target spin-2 slope.
+
+The February 23 update introduced a more serious proxy based on connected bond-bond correlators with coarse-graining. The semantics are now locked to the convention
+\[
+S(k) \sim \frac{1}{k^p},
+\]
+with target tensor behavior at $p=2$. Under that raw proxy the repository found a strong topology split: star graphs were closer to the target band than path or cycle, while path and cycle typically stayed in the much steeper range $-3.1$ to $-3.8$.
+
+That was real progress, but it was not yet the right falsification test. The March 8 update cycle then asked the harder question: does any tensor-like signal survive after subtracting a scalar background and applying stronger controls? Three families of TT-style observables were tested at anchored $N=4$ and $N=5$ points:
+\begin{itemize}
+    \item shell edge-field subtraction,
+    \item covariance-background subtraction,
+    \item harmonic low-mode subtraction on the line graph.
+\end{itemize}
+
+The redteam outcome is stricter than the February reading:
+\begin{itemize}
+    \item shell subtraction is a useful hard negative control, but source-sensitive and too brittle to carry a positive claim;
+    \item covariance-background subtraction is the most robust tested tensor observable so far, but it leaves star and cycle with similar non-target powers and does not isolate a star-led tensor sector;
+    \item harmonic subtraction finds an interesting $N=4$ cycle feature, but redteam checks show that it is projector-specific, fit-sensitive, and fails immediately under $N4 \rightarrow N5$ carryover.
+\end{itemize}
+
+So the correct present claim is no longer ``star graphs land near the tensor target.'' The correct present claim is: \emph{the bond-correlator program sharpened the tensor question, but no tested TT observable is yet simultaneously background-robust, topology-robust, and finite-size-stable.}
+
+\subsection{\texorpdfstring{$\alpha$}{alpha} is on firmer conceptual ground, but not yet numerically closed}
+
+The status and volume-3 style papers were right to reinterpret $\alpha$ as a susceptibility rather than as a pure fit parameter. The February documentation improves that story in two ways.
+
+First, the analytic note derives a dilute perturbative scaling of the form
+\[
+\alpha \propto \frac{\lambda^2}{\omega^2 \Delta_{\mathrm{eff}}}
+\times
+\text{(frustration-weighted occupation average)}.
+\]
+This is not yet a finished derivation of the exact production value of $\alpha$, but it makes the response interpretation much more concrete.
+
+Second, the \texttt{v3over9000} branch adds a self-energy extraction route based on the zero-frequency slope of the local frequency shift. The documented small-$N$ smoke runs produce stable nontrivial values around
+\[
+\alpha_{\mathrm{self-energy}} \approx 0.035
+\]
+with high local linear-fit quality in that setup.
+
+At present these two improvements should be read as \emph{conceptual support} for $\alpha$, not as a replacement for the phenomenological $\alpha$ used in the main phase scans. The production path still studies $\alpha$ values such as $0.6$, $0.8$, or $1.0$ as scanning parameters. The bridge between those phenomenological values and the microscopic extraction routes remains open.
+
+\subsection{\texorpdfstring{Negative-$\gamma_{\mathrm{corr}}$}{Negative-gamma-corr} structural deformations help slightly, not decisively}
+
+One of the best recent developments is methodological rather than triumphant: the project stopped pretending that scalar retuning alone would settle everything and opened a branch for structural modifications.
+
+The new correlated-promotion term, controlled by $\gamma_{\mathrm{corr}}$, was tested in TT-style sweeps. Positive $\gamma_{\mathrm{corr}}$ did not help. Negative $\gamma_{\mathrm{corr}}$ did improve tensor residuals modestly across path, cycle, and star, both at $N=4$ and in the tested $N=5$ carryover. But the gains remain small relative to the full gap to target.
+
+That is exactly the sort of result a healthy rewrite should preserve: the sign of the correlated channel matters, the effect is real, and yet the improvement is not large enough to justify a solved-emergence narrative.
+
+\subsection{The computational platform is now substantially more mature}
+
+A major practical advance of February 24--25 is the introduction of a sparse/iterative backend for deep-time scans. The repository now includes:
+
+\begin{itemize}
+    \item sparse Hamiltonian assembly,
+    \item iterative ground-state eigensolves,
+    \item Krylov time evolution,
+    \item dense-vs-iterative parity checks,
+    \item an explicit backend regression gate,
+    \item automatic backend selection for larger scans.
+\end{itemize}
+
+This matters scientifically because it turned the previous throughput wall into a testable convergence question. For example:
+\begin{itemize}
+    \item dense-vs-iterative parity passes with maximum metric differences around $10^{-10}$ to $10^{-11}$ on the documented anchors;
+    \item the previous $N=5$ cycle high-cutoff bottleneck is no longer a conceptual blocker;
+    \item the real remaining convergence issue is now localized to the high-$\lambda$ star window rather than to solver feasibility in general.
+\end{itemize}
+
+\subsection{Frozen-matter screening did not validate a screened scalar sector}
+
+Another useful negative result is the frozen-matter scalar screening scan. The first pass compared massless Poisson-like and screened Yukawa-like scalar fits in a frozen-matter mode.
+
+The readout was cautious:
+\begin{itemize}
+    \item cycle is consistent with a massless fit at machine precision with $\mu^2 \approx 0$,
+    \item star shows no measurable benefit from a screened term under the constrained fit,
+    \item path admits small positive $\mu^2$ fits, but with weak residual improvements below the acceptance threshold.
+\end{itemize}
+
+This is important because it blocks a premature ``screened scalar sector established'' narrative. At the current stage, screened behavior is not robustly supported by this first frozen-matter experiment.
+
+\section{What must be weakened or withdrawn}
+
+\subsection{The main status table}
+
+Table~\ref{tab:claim-status} is the most important interpretive object in this rewrite. It states how the major 2025-era claims should now be treated.
+
+\begin{longtable}{@{}p{0.25\textwidth}p{0.23\textwidth}p{0.42\textwidth}@{}}
+\caption{Claim status after the February 2026 decision logs and results updates.}
+\label{tab:claim-status}\\
+\toprule
+Earlier claim family & Current status & Action in the rewritten paper \\
+\midrule
+\endfirsthead
+\toprule
+Earlier claim family & Current status & Action in the rewritten paper \\
+\midrule
+\endhead
+Strictly local, unitary, measurement-free backbone & Established & Keep as core foundation. This is the cleanest and strongest part of the project. \\
+Machine-precision no-signalling / energy conservation checks & Established & Keep as validated numerical structure. \\
+Approximate scalar clock law $\omega/(1+\alpha\Lambda)$ & Supported but protocol-dependent & Keep as the main positive phenomenology, with explicit caveats about preparation, topology, and proxy choice. \\
+Non-1D topology changes the scalar dynamics & Established & Elevate. This is now a major result, not an implementation footnote. \\
+A universal revival scale or universal low-curvature window across topologies & Not supported & Remove from the main claim set. The data favor topology-specific landmarks. \\
+Robustness of phase landmarks under hotspot and phenomenological knobs & Not supported & State the opposite: the landmarks are materially sensitive to hotspot multiplier, $\delta_B$, and $\kappa$ in the currently studied window. \\
+No-retuning topology transfer & Fails in the documented holdouts & Remove as a validation claim; keep as an explicit negative result motivating topology-conditioned mechanisms. \\
+Original $\chi$-based spin-2 PSD & Not convincing & Retire as primary evidence. Mention only as a historical starting point. \\
+Correlator-based star advantage in the raw bond proxy & Indicated, but downgraded by later TT checks & Keep only as a motivating hint that triggered stricter tests, not as present evidence for a tensor sector. \\
+Universal spin-2 emergence across topologies & Not supported & Do not claim. \\
+Gauge cascade $U(1)\to SU(2)\to SU(3)$ as an achieved result & Untested in the current repo evidence chain & Move to conjectural outlook only. \\
+Planck anchors, Hawking temperature, Lorentz-violation coefficients, black-hole mapping & Heuristic only & Move out of the main results narrative and label as speculative anchoring arguments. \\
+Unique microscopic determination of $\alpha$ in production numerics & Not yet closed & Keep only the perturbative and self-energy scaffolding, not a universal extracted constant. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Robustness claims are the biggest casualty}
+
+The strongest downgrade since the volume-3 style writeup is the loss of confidence in robustness.
+
+At $N=4$ and $\alpha=0.8$, changing the hotspot multiplier from $2.0$ to $4.0$ shifts the documented canonical landmarks from roughly
+\[
+(\lambda_{c1},\lambda_{\mathrm{rev}},\lambda_{c2})
+\approx
+(0.344,0.550,0.633)
+\]
+to
+\[
+(\lambda_{c1},\lambda_{\mathrm{rev}},\lambda_{c2})
+\approx
+(0.151,0.241,0.633).
+\]
+This is not a tiny systematic error bar; it is a material protocol dependence.
+
+Likewise, the February 23 robustness grid across $\delta_B$, $\kappa$, and bond cutoff found large global spans in all three main phase landmarks, with cutoff effects secondary to the phenomenological control parameters in the tested window.
+
+These facts do not kill the scalar story. They do kill any strong claim that the currently reported landmarks are universal outputs of the bare microphysics independent of reasonable preparation choices.
+
+\subsection{No-retuning topology transfer fails twice}
+
+The repository now contains two explicit no-retuning holdout episodes, and both fail.
+
+The earlier February 23 holdout already showed that one lock can pass a path scenario while failing star and cycle. The February 25 locked-parameter holdout repeated the lesson with a different central parameterization:
+\begin{itemize}
+    \item path can pass structural criteria at moderate grid density,
+    \item star can show correct ordering while missing target landmarks by large margins,
+    \item cycle can stay in a no-violation regime where the revival logic never activates.
+\end{itemize}
+
+This is a decisive interpretive result. The model in its current phenomenological form is not yet topology-transferable under one global lock. Any new paper that still claims otherwise would be outdated on arrival.
+
+\subsection{The tensor problem is still open, and now more tightly bounded}
+
+Even after the correlator upgrade and the March 8 TT program, the tensor story is not settled. What changed is that the loopholes are smaller. The raw bond-correlator star advantage was enough to justify a harder fluctuation analysis, but the harder analysis did not validate a tensor sector.
+
+So the right tensor-language hierarchy is now:
+\begin{enumerate}
+    \item the original spin-2 evidence is no longer adequate;
+    \item the raw bond-correlator proxy revealed a real topology split and therefore motivated stricter tensor tests;
+    \item shell, covariance, and harmonic TT checks do not yet yield a background-robust, topology-robust, finite-size-stable tensor signal;
+    \item a universal spin-2 sector has not been demonstrated, and even the star-led version is not presently supported.
+\end{enumerate}
+
+\subsection{Large-scale phenomenology must move back to outlook}
+
+The older ambitious consequences---Planckian anchoring, Lorentz-violation coefficients, Hawking-like temperatures, black-hole thermodynamics, or continuum gauge emergence---should not be presented as current conclusions of the repo-level evidence chain.
+
+They may still be valuable as long-range motivations. But after the February 2026 decision logs, the honest ordering is:
+\begin{equation}
+\begin{aligned}
+\text{local unitary model}
+&\rightarrow
+\text{scalar clock renormalization}
+\rightarrow
+\text{topology dependence} \\
+&\rightarrow
+\text{open tensor problem}
+\rightarrow
+\text{broader phenomenology}.
+\end{aligned}
+\end{equation}
+
+\section{A conservative rewrite of the research program}
+
+\subsection{The thesis that now fits the evidence}
+
+A one-sentence thesis that accurately fits the current repository is:
+
+\begin{quote}
+\emph{SRQID/QATNU is a strictly unitary, measurement-free, bounded-degree quantum lattice model with strong causal numerics, a reproducible small-$N$ scalar clock-renormalization law, and topology-dependent dynamical structure; it is a falsifiable testbed for emergent-gravity ideas, not yet a completed theory of gravity.}
+\end{quote}
+
+That is less dramatic than some earlier language, but it is scientifically stronger because it matches the current evidence.
+
+\subsection{A conservative scalar continuum bridge}
+
+The repo now has a reasonably solid \emph{scalar} story but still lacks a clean continuum closure that turns shell-averaged promotions into a nonsingular radial profile. The most conservative effective closure consistent with the current scalar narrative is to introduce a coarse-grained radial field
+\begin{equation}
+\Lambda_{\mathrm{cg}}(r)
+=
+\Lambda_0\,j_0(kr)
+=
+\Lambda_0\,\frac{\sin(kr)}{kr}.
+\label{eq:j0}
+\end{equation}
+This ansatz is useful because:
+\begin{itemize}
+    \item it is finite at $r=0$,
+    \item it has a $1/r$ far-field envelope after coarse-graining over rapid oscillations,
+    \item it feeds directly into the existing scalar constitutive law.
+\end{itemize}
+
+The corresponding scalar closure is
+\begin{equation}
+n(r) = 1+\alpha \Lambda_{\mathrm{cg}}(r),
+\qquad
+\omega_{\mathrm{eff}}(r) = \frac{\omega}{n(r)},
+\qquad
+\frac{d\tau}{dt} = \frac{1}{n(r)}.
+\label{eq:scalar-closure}
+\end{equation}
+In the weak-field regime,
+\begin{equation}
+\frac{\delta \omega(r)}{\omega}
+\approx
+-\alpha \Lambda_{\mathrm{cg}}(r).
+\label{eq:redshift-weak}
+\end{equation}
+
+This is a sensible next-step bridge for the scalar sector, but it must be stated carefully:
+\begin{enumerate}
+    \item Eq.~\eqref{eq:j0} is an effective coarse-grained closure, not yet a derived theorem of the simulator.
+    \item It is \emph{not} by itself a spin-2 derivation.
+    \item It should be used as a background around which any future tensor sector is defined, not as a substitute for that tensor sector.
+\end{enumerate}
+
+\subsection{What the next decisive experiments should be}
+
+The rewritten program now points to a narrower next set of tests.
+
+\begin{enumerate}
+    \item \textbf{Lock one operational $\Lambda$ definition.} The codebase still uses closely related but not fully unified depth proxies. The next paper should choose one canonical scalar observable and make all formulas, exports, and plots use it.
+    \item \textbf{Treat tensor as a guarded falsification track, not the headline narrative.} The March 8 TT program already performed the first serious background-subtracted fluctuation tests. Future tensor work should proceed only through preregistered robustness matrices and should be judged by survival under controls, not by isolated attractive slopes.
+    \item \textbf{Formalize the scalar/topology result as the core science.} The strongest supported program is now the unitary scalar clock-renormalization sector plus topology-dependent dynamics. That needs its own clean theory-and-data paper, not only a downgraded gravity paper.
+    \item \textbf{Keep the negative controls.} No-retuning transfer tests, hotspot sensitivity, backend parity gates, and source/projector sensitivity checks should remain mandatory parts of every serious claim.
+    \item \textbf{Use structural modifications, not only scalar retuning.} The sign-sensitive $\gamma_{\mathrm{corr}}$ result and the March 8 topology-conditioned source/readout experiments suggest that structural Hamiltonian changes are more informative than endless re-optimization of the same phenomenological knobs.
+\end{enumerate}
+
+\section{Comparison with the earlier papers}
+
+It is useful to say explicitly how this rewrite relates to the named papers already in the repository.
+
+\subsection*{SRQID (August 2025)}
+
+What survives:
+\begin{itemize}
+    \item the insistence on a fixed, local, measurement-free Hamiltonian,
+    \item the Lieb-Robinson framing,
+    \item the basic ladder-register construction.
+\end{itemize}
+
+What changes:
+\begin{itemize}
+    \item the repo paper should clearly distinguish the historical Hamiltonian family from the currently implemented production Hamiltonian;
+    \item SRQID should now cite the later topology results and backend developments, not only the original causality numerics.
+\end{itemize}
+
+\subsection*{QATNU (August 2025)}
+
+What survives:
+\begin{itemize}
+    \item the ambition to connect local promotions to geometry,
+    \item the circuit/geometry intuition,
+    \item the relevance of bounded-degree causal structure.
+\end{itemize}
+
+What must move out of the main claims:
+\begin{itemize}
+    \item achieved spin-2 language,
+    \item achieved gauge-cascade language,
+    \item phenomenology that presumes those achievements.
+\end{itemize}
+
+\subsection*{Status 202511}
+
+What survives:
+\begin{itemize}
+    \item the centrality of Postulate~1,
+    \item the exact-diagonalization bridge from the older drafts to a measurable constitutive law.
+\end{itemize}
+
+What must change:
+\begin{itemize}
+    \item non-1D graphs are no longer only future work,
+    \item the old language about a clean three-regime story in $(\lambda,\alpha)$ should now be expressed with stronger protocol and topology caveats.
+\end{itemize}
+
+\subsection*{Volume 3}
+
+What survives:
+\begin{itemize}
+    \item $\alpha$ as susceptibility is the right conceptual direction,
+    \item the paper correctly acknowledges that spin-2 remains the weak point.
+\end{itemize}
+
+What must be downgraded:
+\begin{itemize}
+    \item robustness of the balanced window,
+    \item strong macroscopic anchoring claims,
+    \item any implication that the current finite-$N$ numerics already justify continuum phenomenology as more than an outlook program.
+\end{itemize}
+
+\section{Conclusion}
+
+The February--March 2026 repository state does not support the strongest version of the old story, but it supports a better one.
+
+What is strongest now is not the broadest claim. It is the combination of:
+\begin{itemize}
+    \item a well-defined local unitary microphysics,
+    \item machine-precision causal sanity checks,
+    \item a useful scalar clock-renormalization law,
+    \item clear non-1D and finite-size structure,
+    \item a tensor diagnostic program that has now been strong enough to reject several weaker spin-2 narratives.
+\end{itemize}
+
+That is already enough for a serious paper.
+
+The proper next-era framing is therefore not ``new era of physics achieved,'' but rather:
+\begin{quote}
+\emph{a disciplined unitary lattice testbed has been built, its scalar sector is quantitatively interesting, its topology dependence is real, and its tensor sector has now been constrained tightly enough that failure is scientifically informative rather than merely disappointing.}
+\end{quote}
+
+That is the rewrite this repository now deserves.
+
+\begin{thebibliography}{99}
+
+\bibitem{srqid2025}
+Joshua Farrow,
+\emph{Emergent Physical Laws from Self-Referential Quantum-Information Dynamics (SRQID): A Linear, Measurement-Free Hamiltonian with Lieb-Robinson Bounds},
+repository draft, August 2025.
+
+\bibitem{qatnu2025}
+Joshua Farrow,
+\emph{Quantum Automaton Tensor Network Universe (QATNU): Measurement-Free Gauge Promotion and Emergent Geometry},
+repository draft, August 2025.
+
+\bibitem{status202511}
+Joshua Farrow,
+\emph{Validating QATNU/SRQID Physics in the Current Simulator: Exact-Diagonalization Evidence at $N=4$ and $N=5$},
+repository status note, November 2025.
+
+\bibitem{volume3}
+Joshua Farrow,
+\emph{Self-Referential Quantum Information Dynamics as a Discrete Testbed for Emergent Gravity: Results, Anchors, and Limitations},
+repository draft, 2026.
+
+\bibitem{readme}
+warrofua/qca\_test\_qatnu repository,
+\emph{README.md},
+current main-branch documentation.
+
+\bibitem{results}
+warrofua/qca\_test\_qatnu repository,
+\emph{docs/results.md},
+current results snapshot and February 2026 updates.
+
+\bibitem{alphaderivation}
+warrofua/qca\_test\_qatnu repository,
+\emph{docs/alpha\_derivation.md},
+perturbative note on susceptibility extraction.
+
+\bibitem{logspin2}
+warrofua/qca\_test\_qatnu repository,
+\emph{docs/decision\_log\_20260223\_spin2\_correlator\_sweep.md},
+February 23, 2026.
+
+\bibitem{logv3}
+warrofua/qca\_test\_qatnu repository,
+\emph{docs/decision\_log\_20260223\_v3over9000.md},
+February 23, 2026.
+
+\bibitem{logholdout}
+warrofua/qca\_test\_qatnu repository,
+\emph{docs/decision\_log\_20260225\_holdout\_transfer.md},
+February 25, 2026.
+
+\bibitem{lognext10}
+warrofua/qca\_test\_qatnu repository,
+\emph{docs/decision\_log\_20260225\_next10.md},
+February 25, 2026.
+
+\bibitem{logttbg}
+warrofua/qca\_test\_qatnu repository,
+\emph{docs/decision\_log\_20260308\_tt\_background\_subtracted.md},
+March 8, 2026.
+
+\bibitem{logttcov}
+warrofua/qca\_test\_qatnu repository,
+\emph{docs/decision\_log\_20260308\_tt\_covariance\_background.md},
+March 8, 2026.
+
+\bibitem{logttharm}
+warrofua/qca\_test\_qatnu repository,
+\emph{docs/decision\_log\_20260308\_tt\_harmonic\_background.md},
+March 8, 2026.
+
+\bibitem{logredteam}
+warrofua/qca\_test\_qatnu repository,
+\emph{docs/decision\_log\_20260308\_redteam.md},
+March 8, 2026.
+
+\bibitem{theorystatus}
+warrofua/qca\_test\_qatnu repository,
+\emph{docs/theory\_status\_20260308.md},
+March 8, 2026.
+
+\bibitem{liebrobinson}
+Elliott H. Lieb and Derek W. Robinson,
+\emph{The finite group velocity of quantum spin systems},
+Communications in Mathematical Physics \textbf{28} (1972), 251--257.
+
+\bibitem{hastingskoma}
+Matthew B. Hastings and Tohru Koma,
+\emph{Spectral gap and exponential decay of correlations},
+Communications in Mathematical Physics \textbf{265} (2006), 781--804.
+
+\end{thebibliography}
+
+\end{document}

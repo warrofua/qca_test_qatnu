@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "max_abs_diff": 1.1095452334686229e-10,
+  "threshold": 1e-08,
+  "worst_metric": {
+    "topology": "path",
+    "lambda": 1.0,
+    "metric": "max_abs_mode_dom_amp",
+    "dense_value": 0.4574085665043162,
+    "iterative_value": 0.4574085663933617,
+    "abs_diff": 1.1095452334686229e-10
+  },
+  "dense_summary": "outputs/backend_regression_check_N5_chi4_20260225/dense/summary.csv",
+  "iterative_summary": "outputs/backend_regression_check_N5_chi4_20260225/iterative/summary.csv",
+  "metric_diffs": "outputs/backend_regression_check_N5_chi4_20260225/metric_diffs.csv"
+}

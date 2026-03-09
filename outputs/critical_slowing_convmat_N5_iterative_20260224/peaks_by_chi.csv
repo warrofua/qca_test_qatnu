@@ -1,0 +1,10 @@
+chi,topology,metric,peak_lambda,peak_tau
+3,cycle,tau_dephase_global,0.61,9.090909090909092
+4,cycle,tau_dephase_global,0.61,9.090909090909092
+5,cycle,tau_dephase_global,0.61,9.090909090909092
+3,path,tau_dephase_probe,1.0,15.126050420168069
+4,path,tau_dephase_probe,1.0,15.630252100840336
+5,path,tau_dephase_probe,1.0,18.181818181818183
+3,star,tau_dephase_probe,1.5,9.07563025210084
+4,star,tau_dephase_probe,1.6,7.0588235294117645
+5,star,tau_dephase_probe,1.6,7.272727272727273

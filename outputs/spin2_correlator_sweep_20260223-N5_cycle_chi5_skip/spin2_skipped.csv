@@ -1,0 +1,2 @@
+scenario_id,bond_cutoff,points,valid_points,best_lambda,best_slope,best_power,best_target_error,mean_target_error,median_target_error,skip_reason,estimated_dense_gib,estimated_total_dim
+N5_cycle_alpha0.8,5,0,0,,,,,,,dense_H_estimate_exceeds_limit (74.51 GiB > 32.00 GiB),74.50580596923828,100000

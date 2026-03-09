@@ -1,0 +1,28 @@
+{
+  "generated": "2026-02-23T09:04:40",
+  "locked_parameterization": {
+    "deltaB": 6.5,
+    "kappa": 0.2,
+    "hotspot_multiplier": 1.5,
+    "k0": 4,
+    "bond_cutoff": 4
+  },
+  "tolerances": {
+    "lambda_c1": 0.15,
+    "lambda_revival": 0.3,
+    "lambda_c2": 0.3,
+    "residual_min": 0.2
+  },
+  "holdouts": [
+    {
+      "id": "N4_path_alpha1.0",
+      "N": 4,
+      "graph": "path",
+      "alpha": 1.0,
+      "lambda_min": 0.1,
+      "lambda_max": 1.5,
+      "points": 3,
+      "targets": null
+    }
+  ]
+}

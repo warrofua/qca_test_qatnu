@@ -1,0 +1,2 @@
+scenario_id,graph,N,alpha,lambda_min,lambda_max,points,lambda_c1,lambda_revival,lambda_c2,residual_min,phase_order_ok,complete_triplet,residual_ok,target_match_ok,revival_method,revival_reporting_rule,mean_residual,max_residual,min_residual,scenario_pass,err_lambda_c1,err_lambda_revival,err_lambda_c2
+N4_path_alpha1.0,path,4,1.0,0.1,1.5,3,0.7999999999999999,0.7999999999999999,1.5,0.12958102417972706,False,True,True,,global_minimum_fallback,global_minimum_post_violation,0.1898448520135386,0.43135390803660123,0.008599623824287472,False,,,

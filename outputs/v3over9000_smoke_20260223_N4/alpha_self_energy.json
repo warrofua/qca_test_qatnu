@@ -1,0 +1,60 @@
+{
+  "baseline": {
+    "alpha_self_energy": -3.464668830731726e-16,
+    "omega_ref": 1.0,
+    "slope_sigma_vs_lambda": -3.464668830731726e-16,
+    "intercept_sigma_vs_lambda": -0.021017612416682537,
+    "r2": 0.0,
+    "num_points": 3,
+    "fit_points": 3,
+    "samples": [
+      {
+        "lambda_control": 0.1,
+        "lambda_local": 0.0020591778869271126,
+        "omega_eff": 1.0210176124166825,
+        "sigma0": -0.02101761241668254
+      },
+      {
+        "lambda_control": 0.2,
+        "lambda_local": 0.00817509007588603,
+        "omega_eff": 1.0210176124166825,
+        "sigma0": -0.02101761241668254
+      },
+      {
+        "lambda_control": 0.3,
+        "lambda_local": 0.018166775405231473,
+        "omega_eff": 1.0210176124166825,
+        "sigma0": -0.02101761241668254
+      }
+    ]
+  },
+  "correlated": {
+    "alpha_self_energy": -1.7564001754013436e-16,
+    "omega_ref": 1.0,
+    "slope_sigma_vs_lambda": -1.7564001754013436e-16,
+    "intercept_sigma_vs_lambda": -0.021017612416682534,
+    "r2": 0.0,
+    "num_points": 3,
+    "fit_points": 3,
+    "samples": [
+      {
+        "lambda_control": 0.1,
+        "lambda_local": 0.0020474567185128204,
+        "omega_eff": 1.0210176124166825,
+        "sigma0": -0.02101761241668254
+      },
+      {
+        "lambda_control": 0.2,
+        "lambda_local": 0.008070168267504577,
+        "omega_eff": 1.0210176124166825,
+        "sigma0": -0.02101761241668254
+      },
+      {
+        "lambda_control": 0.3,
+        "lambda_local": 0.01791278848154182,
+        "omega_eff": 1.0210176124166825,
+        "sigma0": -0.02101761241668254
+      }
+    ]
+  }
+}

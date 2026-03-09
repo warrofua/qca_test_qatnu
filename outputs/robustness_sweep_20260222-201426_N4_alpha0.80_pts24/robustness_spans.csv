@@ -1,0 +1,5 @@
+metric,span
+lambda_c1,0.6250000000000001
+lambda_revival,1.4
+lambda_c2,1.34375
+mean_residual,0.22304025331088795

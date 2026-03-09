@@ -128,6 +128,46 @@ Best-by-scenario:
 - `N5_path_alpha0.8, chi=3`: best slope `-3.118`, best error `1.118`
 - `N5_path_alpha0.8, chi=4`: best slope `-3.118`, best error `1.118`
 
+## Sweep G (Spin-2 semantic lock + N5 chi=5 feasibility guard)
+Goal:
+Unify spin-2 metric semantics end-to-end, then preflight `N5 chi=5` dense runs safely.
+
+Implementation:
+- Normalized simulator spin-2 semantics to **power convention**:
+  - `S(k) ~ 1/k^p`, target `p=2`, slope derived as `-p`.
+- Updated simulator outputs to expose both power and slope consistently:
+  - `Simulator/backend/main.py` (`get_run`, `get_run_agreement`, `spin2_complete` payload)
+  - `Simulator/backend/models.py` (validation defaults/docs)
+  - `Simulator/frontend/app.py` (status/log display)
+- Hardened sweep runner:
+  - `scripts/spin2_correlator_topology_sweep.py`
+  - Added `--max-dense-gib` preflight skip for infeasible dense Hamiltonians.
+  - Added explicit `spin2_skipped.csv` / `spin2_errors.csv` outputs.
+  - Added per-future exception isolation.
+
+Feasibility table:
+- `outputs/spin2_n5_chi5_feasibility_20260223.csv`
+  - `N5 path chi=5`: `total_dim=20000`, dense estimate `2.98 GiB`
+  - `N5 star chi=5`: `total_dim=20000`, dense estimate `2.98 GiB`
+  - `N5 cycle chi=5`: `total_dim=100000`, dense estimate `74.51 GiB`
+
+Command (explicit skip artifact):
+` .venv/bin/python scripts/spin2_correlator_topology_sweep.py --scenarios N5:cycle:0.8 --bond-cutoffs 5 --lambdas 0.6 --workers 1 --max-dense-gib 32 --output-dir outputs/spin2_correlator_sweep_20260223-N5_cycle_chi5_skip`
+
+Artifacts:
+- `outputs/spin2_correlator_sweep_20260223-N5_cycle_chi5_skip/spin2_summary.csv`
+- `outputs/spin2_correlator_sweep_20260223-N5_cycle_chi5_skip/spin2_skipped.csv`
+- `outputs/spin2_correlator_sweep_20260223-N5_cycle_chi5_skip/spin2_report.md`
+
+Verification addendum:
+- Semantic smoke run passed:
+  - `outputs/spin2_correlator_sweep_20260223-verify_semantics/spin2_summary.csv`
+- Preflight skip behavior re-validated:
+  - `outputs/spin2_correlator_sweep_20260223-verify_skip/spin2_summary.csv`
+  - `outputs/spin2_correlator_sweep_20260223-verify_skip/spin2_skipped.csv`
+- Runtime probe (`N5 path/star`, `chi=5`, one λ each) did not reach first completed point within short wall-clock window on current hardware; run was terminated intentionally to avoid long blocking:
+  - `outputs/spin2_correlator_sweep_20260223-N5_pathstar_chi5_probe/`
+
 ## Consolidated table
 - `outputs/spin2_correlator_comparison_20260223.csv`
 - `outputs/spin2_correlator_cutoff_sensitivity_20260223.csv`
@@ -143,6 +183,8 @@ Best-by-scenario:
    - N4/N5 path remains steep and non-spin-2-like as cutoff increases.
    - N5 path is nearly cutoff-invariant (`-3.118` at chi `3` and `4` for tested lambdas).
    - N5 star degrades at chi `4` but still remains clearly separated from path.
+7. Semantic lock (new): simulator now reports spin-2 in one convention (`power` target `2.0`) with derived slope aliases, removing previous sign mismatch between websocket and DB/API paths.
+8. Feasibility boundary (new): `N5 cycle chi=5` dense diagonalization is currently out-of-budget (`~74.5 GiB` matrix estimate), so decisive `chi=5` topology-wide checks require sparse/iterative eigensolvers or stronger hardware.
 
 ## Immediate next experiment
-Run N5 star with denser λ and one additional cutoff (`chi=5`) on upgraded hardware, then test whether the star degradation trend with cutoff continues or re-stabilizes near `-2`.
+Run dense `N5 path/star` at `chi=5` on upgraded hardware with 6-9 λ points, and in parallel implement a sparse/iterative eigensolver path for `N5 cycle chi=5` so topology-complete `chi=5` comparison becomes tractable.

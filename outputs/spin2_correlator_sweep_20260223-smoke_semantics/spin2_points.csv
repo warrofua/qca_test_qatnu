@@ -1,0 +1,2 @@
+scenario_id,N,topology,alpha,lambda,bond_cutoff,spin2_power,spin2_slope,spin2_target_error,fit_quality,num_modes,method,lambda_out,lambda_in,edge_count
+N4_path_alpha0.8,4,path,0.8,0.2,3,3.718826393421249,-3.718826393421249,1.7188263934212489,False,128,bond_correlator,0.011908558451656982,0.04537704236147361,3

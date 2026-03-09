@@ -1,0 +1,4 @@
+topology,N,bond_cutoff,edge_count,matter_dim,bond_dim,total_dim,estimated_dense_gib
+path,5,5,4,32,625,20000,2.9802322387695312
+star,5,5,4,32,625,20000,2.9802322387695312
+cycle,5,5,5,32,3125,100000,74.50580596923828

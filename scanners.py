@@ -6,13 +6,47 @@ from __future__ import annotations
 import os
 import platform
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
 import tqdm
 
 from core_qca import ExactQCA
+
+
+def _apply_hotspot_protocol(
+    *,
+    N: int,
+    base_config: Dict,
+    bond_cutoff: int,
+    edges: List[Tuple[int, int]],
+    ground_state: np.ndarray,
+    hotspot_multiplier: float,
+    hotspot_time: float,
+    hotspot_edge_weights: Optional[Sequence[float]],
+    hotspot_stages: Optional[Sequence[Dict]],
+) -> np.ndarray:
+    from copy import deepcopy
+
+    if hotspot_stages:
+        state = ground_state
+        for stage in hotspot_stages:
+            stage_config = deepcopy(base_config)
+            stage_config["lambda"] = float(base_config["lambda"]) * float(stage.get("multiplier", hotspot_multiplier))
+            stage_weights = stage.get("edge_weights")
+            if stage_weights is not None:
+                stage_config["lambda_edge_weights"] = list(stage_weights)
+            qca_hotspot = ExactQCA(N, stage_config, bond_cutoff=bond_cutoff, edges=edges)
+            state = qca_hotspot.evolve_state(state, float(stage.get("time", hotspot_time)))
+        return state
+
+    hotspot_config = deepcopy(base_config)
+    hotspot_config["lambda"] = float(base_config["lambda"]) * hotspot_multiplier
+    if hotspot_edge_weights is not None:
+        hotspot_config["lambda_edge_weights"] = list(hotspot_edge_weights)
+    qca_hotspot = ExactQCA(N, hotspot_config, bond_cutoff=bond_cutoff, edges=edges)
+    return qca_hotspot.evolve_state(ground_state, hotspot_time)
 
 
 class ParameterScanner:
@@ -29,12 +63,42 @@ class ParameterScanner:
             Tuple[Tuple[int, int], ...],
             Tuple[int, int],
             bool,
+            float,
+            float,
+            float,
+            int,
+            float,
+            float,
+            float,
+            Optional[Tuple[float, ...]],
+            Optional[Tuple[Tuple[Tuple[str, object], ...], ...]],
+            float,
+            float,
         ]
     ) -> Dict:
         import sys
-        from copy import deepcopy
 
-        N, alpha, lambda_param, tMax, bond_cutoff, edges, probes, embedded_clocks = args
+        (
+            N,
+            alpha,
+            lambda_param,
+            tMax,
+            bond_cutoff,
+            edges,
+            probes,
+            embedded_clocks,
+            hotspot_multiplier,
+            deltaB,
+            kappa,
+            k0,
+            gamma_corr,
+            gamma_corr_diag,
+            hotspot_time,
+            hotspot_edge_weights,
+            hotspot_stages,
+            readout_gamma_corr,
+            readout_gamma_corr_diag,
+        ) = args
 
         print(
             f"🔄 Worker {os.getpid()} starting: N={N}, λ={lambda_param:.3f}",
@@ -44,10 +108,12 @@ class ParameterScanner:
 
         config = {
             "omega": 1.0,
-            "deltaB": 5.0,
+            "deltaB": deltaB,
             "lambda": lambda_param,
-            "kappa": 0.1,
-            "k0": 4,
+            "kappa": kappa,
+            "k0": k0,
+            "gamma_corr": gamma_corr,
+            "gamma_corr_diag": gamma_corr_diag,
             "bondCutoff": bond_cutoff,
             "J0": 0.01,
             "gamma": 0.0,
@@ -59,11 +125,25 @@ class ParameterScanner:
         edge_list = list(edges)
 
         qca = ExactQCA(N, config, bond_cutoff=bond_cutoff, edges=edge_list)
-        hotspot_config = deepcopy(config)
-        hotspot_config["lambda"] = lambda_param * 3.0
-        qca_hotspot = ExactQCA(N, hotspot_config, bond_cutoff=bond_cutoff, edges=edge_list)
+        readout_config = dict(config)
+        readout_config["gamma_corr"] = readout_gamma_corr
+        readout_config["gamma_corr_diag"] = readout_gamma_corr_diag
+        qca_readout = ExactQCA(N, readout_config, bond_cutoff=bond_cutoff, edges=edge_list)
         ground_state = qca.get_ground_state()
-        frustrated_state = qca_hotspot.evolve_state(ground_state, 1.0)
+        stage_payload = None
+        if hotspot_stages is not None:
+            stage_payload = [dict(stage) for stage in hotspot_stages]
+        frustrated_state = _apply_hotspot_protocol(
+            N=N,
+            base_config=config,
+            bond_cutoff=bond_cutoff,
+            edges=edge_list,
+            ground_state=ground_state,
+            hotspot_multiplier=hotspot_multiplier,
+            hotspot_time=hotspot_time,
+            hotspot_edge_weights=hotspot_edge_weights,
+            hotspot_stages=stage_payload,
+        )
 
         t_grid = np.linspace(0, tMax, 80)
 
@@ -72,12 +152,12 @@ class ParameterScanner:
         measured_freqs: List[float] = []
 
         for site in probe_sites:
-            psi = qca.apply_pi2_pulse(source_state.copy(), site)
+            psi = qca_readout.apply_pi2_pulse(source_state.copy(), site)
             Z_signal = []
 
             for t in t_grid:
-                psi_t = qca.evolve_state(psi, t)
-                Z_t = qca.measure_Z(psi_t, site)
+                psi_t = qca_readout.evolve_state(psi, t)
+                Z_t = qca_readout.measure_Z(psi_t, site)
                 Z_signal.append(Z_t)
 
             Z_signal = np.array(Z_signal)
@@ -102,7 +182,7 @@ class ParameterScanner:
         )
         
         # --- Low-lying spectrum diagnostics (first few levels) ---
-        eig = qca.diagonalize()
+        eig = qca_readout.diagonalize()
         eigs = eig["eigenvalues"]
 
         # Convert to NumPy array and take up to 6 lowest levels (E0..E5)
@@ -166,9 +246,34 @@ class ParameterScanner:
         edges: Optional[List[Tuple[int, int]]] = None,
         probes: Optional[Tuple[int, int]] = None,
         embedded_clocks: bool = False,
+        hotspot_multiplier: float = 3.0,
+        deltaB: float = 5.0,
+        kappa: float = 0.1,
+        k0: int = 4,
+        gamma_corr: float = 0.0,
+        gamma_corr_diag: float = 0.0,
+        hotspot_time: float = 1.0,
+        hotspot_edge_weights: Optional[Sequence[float]] = None,
+        hotspot_stages: Optional[Sequence[Dict]] = None,
+        readout_gamma_corr: float = 0.0,
+        readout_gamma_corr_diag: float = 0.0,
     ) -> pd.DataFrame:
         print(f"\n🔬 Parallel λ scan: N={N}, α={alpha}, points={num_points}")
         print(f"Using {os.cpu_count()} cores")
+        print(f"Hotspot multiplier: {hotspot_multiplier:.2f}×")
+        print(f"Hotspot time: {hotspot_time:.2f}")
+        if hotspot_edge_weights is not None:
+            print(f"Hotspot edge weights: {list(hotspot_edge_weights)}")
+        if hotspot_stages is not None:
+            print(f"Hotspot stages: {list(hotspot_stages)}")
+        print(f"Hamiltonian params: deltaB={deltaB}, kappa={kappa}, k0={k0}")
+        if gamma_corr != 0.0 or gamma_corr_diag != 0.0:
+            print(f"Correlated params: gamma_corr={gamma_corr}, gamma_corr_diag={gamma_corr_diag}")
+        if readout_gamma_corr != gamma_corr or readout_gamma_corr_diag != gamma_corr_diag:
+            print(
+                "Readout correlated params: "
+                f"gamma_corr={readout_gamma_corr}, gamma_corr_diag={readout_gamma_corr_diag}"
+            )
         print(f"Environment: VECLIB_MAXIMUM_THREADS={os.environ.get('VECLIB_MAXIMUM_THREADS')}")
 
         if edges is None:
@@ -177,8 +282,13 @@ class ParameterScanner:
             probes = (0, 1 if N > 1 else 0)
         edges_tuple = tuple(tuple(edge) for edge in edges)
         
-        # If we are in the default full-range scan, use the old 3-part densified grid
-        if abs(lambda_min - 0.1) < 1e-9 and abs(lambda_max - 1.5) < 1e-9:
+        # If we are in the default full-range scan, use the 3-part densified grid.
+        # For very small num_points, fall back to uniform spacing to avoid empty segments.
+        if (
+            abs(lambda_min - 0.1) < 1e-9
+            and abs(lambda_max - 1.5) < 1e-9
+            and num_points >= 10
+        ):
             lambda_vals = np.unique(
                 np.concatenate(
                     [
@@ -192,7 +302,27 @@ class ParameterScanner:
             # Custom zoom window: respect the user’s range exactly
             lambda_vals = np.linspace(lambda_min, lambda_max, num_points)
         args_list = [
-            (N, alpha, l, 20.0, bond_cutoff, edges_tuple, probes, embedded_clocks)
+            (
+                N,
+                alpha,
+                l,
+                20.0,
+                bond_cutoff,
+                edges_tuple,
+                probes,
+                embedded_clocks,
+                hotspot_multiplier,
+                deltaB,
+                kappa,
+                k0,
+                gamma_corr,
+                gamma_corr_diag,
+                hotspot_time,
+                tuple(float(x) for x in hotspot_edge_weights) if hotspot_edge_weights is not None else None,
+                tuple(tuple(stage.items()) for stage in hotspot_stages) if hotspot_stages is not None else None,
+                readout_gamma_corr,
+                readout_gamma_corr_diag,
+            )
             for l in lambda_vals
         ]
 
@@ -256,6 +386,17 @@ class ParameterScanner:
         edges: Optional[List[Tuple[int, int]]] = None,
         probes: Optional[Tuple[int, int]] = None,
         embedded_clocks: bool = False,
+        hotspot_multiplier: float = 3.0,
+        deltaB: float = 5.0,
+        kappa: float = 0.1,
+        k0: int = 4,
+        gamma_corr: float = 0.0,
+        gamma_corr_diag: float = 0.0,
+        hotspot_time: float = 1.0,
+        hotspot_edge_weights: Optional[Sequence[float]] = None,
+        hotspot_stages: Optional[Sequence[Dict]] = None,
+        readout_gamma_corr: float = 0.0,
+        readout_gamma_corr_diag: float = 0.0,
     ) -> pd.DataFrame:
         if lambda_vals is None:
             lambda_vals = np.linspace(0.1, 1.2, 12)
@@ -270,7 +411,27 @@ class ParameterScanner:
         print(f"\n🗺️ 2D phase space: {len(lambda_vals)}×{len(alpha_vals)}={len(lambda_vals)*len(alpha_vals)} points")
 
         args_list = [
-            (N, a, l, 15.0, bond_cutoff, edges_tuple, probes, embedded_clocks)
+            (
+                N,
+                a,
+                l,
+                15.0,
+                bond_cutoff,
+                edges_tuple,
+                probes,
+                embedded_clocks,
+                hotspot_multiplier,
+                deltaB,
+                kappa,
+                k0,
+                gamma_corr,
+                gamma_corr_diag,
+                hotspot_time,
+                tuple(float(x) for x in hotspot_edge_weights) if hotspot_edge_weights is not None else None,
+                tuple(tuple(stage.items()) for stage in hotspot_stages) if hotspot_stages is not None else None,
+                readout_gamma_corr,
+                readout_gamma_corr_diag,
+            )
             for a in alpha_vals
             for l in lambda_vals
         ]
@@ -326,4 +487,3 @@ class ParameterScanner:
             df.to_csv(os.path.join(output_dir, f"phase_space_{tag}.csv"), index=False)
 
         return df
-

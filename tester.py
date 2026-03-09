@@ -3,13 +3,55 @@ Single-point experiments combining exact QCA and mean-field comparators.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from core_qca import ExactQCA
 from mean_field import QuantumChain
+
+
+def _apply_hotspot_protocol(
+    *,
+    N: int,
+    base_config: Dict,
+    bond_cutoff: int,
+    edges: Optional[List[Tuple[int, int]]],
+    ground_state: np.ndarray,
+    hotspot_multiplier: float,
+    hotspot_time: float,
+    hotspot_edge_weights: Optional[Sequence[float]],
+    hotspot_stages: Optional[Sequence[Dict]],
+) -> np.ndarray:
+    if hotspot_stages:
+        state = ground_state
+        for stage in hotspot_stages:
+            stage_config = base_config.copy()
+            stage_config["lambda"] = float(base_config["lambda"]) * float(stage.get("multiplier", hotspot_multiplier))
+            stage_weights = stage.get("edge_weights")
+            if stage_weights is not None:
+                stage_config["lambda_edge_weights"] = list(stage_weights)
+            qca_hotspot = ExactQCA(
+                N,
+                stage_config,
+                bond_cutoff=bond_cutoff,
+                edges=edges,
+            )
+            state = qca_hotspot.evolve_state(state, float(stage.get("time", hotspot_time)))
+        return state
+
+    hotspot_config = base_config.copy()
+    hotspot_config["lambda"] = float(base_config["lambda"]) * hotspot_multiplier
+    if hotspot_edge_weights is not None:
+        hotspot_config["lambda_edge_weights"] = list(hotspot_edge_weights)
+    qca_hotspot = ExactQCA(
+        N,
+        hotspot_config,
+        bond_cutoff=bond_cutoff,
+        edges=edges,
+    )
+    return qca_hotspot.evolve_state(ground_state, hotspot_time)
 
 
 class QCATester:
@@ -21,6 +63,13 @@ class QCATester:
         alpha: float = 0.8,
         bond_cutoff: int = 4,
         hotspot_multiplier: float = 3.0,
+        hotspot_time: float = 1.0,
+        hotspot_edge_weights: Optional[Sequence[float]] = None,
+        hotspot_stages: Optional[Sequence[Dict]] = None,
+        gamma_corr: float = 0.0,
+        gamma_corr_diag: float = 0.0,
+        readout_gamma_corr: float = 0.0,
+        readout_gamma_corr_diag: float = 0.0,
         edges: Optional[List[Tuple[int, int]]] = None,
         probes: Optional[Tuple[int, int]] = None,
     ):
@@ -33,6 +82,13 @@ class QCATester:
             "deltaB": 5.0,
             "lambda": 0.3,
             "hotspotMultiplier": hotspot_multiplier,
+            "hotspotTime": hotspot_time,
+            "hotspotEdgeWeights": list(hotspot_edge_weights) if hotspot_edge_weights is not None else None,
+            "hotspotStages": list(hotspot_stages) if hotspot_stages is not None else None,
+            "gamma_corr": gamma_corr,
+            "gamma_corr_diag": gamma_corr_diag,
+            "readoutGammaCorr": readout_gamma_corr,
+            "readoutGammaCorrDiag": readout_gamma_corr_diag,
             "kappa": 0.1,
             "k0": 4,
             "bondCutoff": bond_cutoff,
@@ -61,21 +117,50 @@ class QCATester:
             bond_cutoff=config["bondCutoff"],
             edges=config.get("edges"),
         )
+        readout_config = dict(config)
+        readout_config["gamma_corr"] = config.get(
+            "readoutGammaCorr",
+            self.parameters.get("readoutGammaCorr", config.get("gamma_corr", 0.0)),
+        )
+        readout_config["gamma_corr_diag"] = config.get(
+            "readoutGammaCorrDiag",
+            self.parameters.get("readoutGammaCorrDiag", config.get("gamma_corr_diag", 0.0)),
+        )
+        qca_readout = ExactQCA(
+            config["N"],
+            readout_config,
+            bond_cutoff=config["bondCutoff"],
+            edges=config.get("edges"),
+        )
 
         hotspot_multiplier = config.get(
             "hotspotMultiplier",
             self.parameters.get("hotspotMultiplier", 3.0),
         )
-        hotspot_config = config.copy()
-        hotspot_config["lambda"] = config["lambda"] * hotspot_multiplier
-        qca_hotspot = ExactQCA(
-            config["N"],
-            hotspot_config,
-            bond_cutoff=config["bondCutoff"],
-            edges=config.get("edges"),
+        hotspot_time = config.get(
+            "hotspotTime",
+            self.parameters.get("hotspotTime", 1.0),
+        )
+        hotspot_edge_weights = config.get(
+            "hotspotEdgeWeights",
+            self.parameters.get("hotspotEdgeWeights"),
+        )
+        hotspot_stages = config.get(
+            "hotspotStages",
+            self.parameters.get("hotspotStages"),
         )
         ground_state = qca.get_ground_state()
-        frustrated_state = qca_hotspot.evolve_state(ground_state, 1.0)
+        frustrated_state = _apply_hotspot_protocol(
+            N=config["N"],
+            base_config=config,
+            bond_cutoff=config["bondCutoff"],
+            edges=config.get("edges"),
+            ground_state=ground_state,
+            hotspot_multiplier=hotspot_multiplier,
+            hotspot_time=hotspot_time,
+            hotspot_edge_weights=hotspot_edge_weights,
+            hotspot_stages=hotspot_stages,
+        )
 
         t_grid = np.linspace(0, config["tMax"], 100)
 
@@ -84,9 +169,9 @@ class QCATester:
 
         for t in t_grid:
             for site, data_list in [(config["probeOut"], data_out), (config["probeIn"], data_in)]:
-                psi = qca.apply_pi2_pulse(ground_state, site)
-                psi_t = qca.evolve_state(psi, t)
-                Z_t = qca.measure_Z(psi_t, site)
+                psi = qca_readout.apply_pi2_pulse(ground_state, site)
+                psi_t = qca_readout.evolve_state(psi, t)
+                Z_t = qca_readout.measure_Z(psi_t, site)
                 data_list.append({"t": t, "Z": Z_t})
 
         bond_dims = []
@@ -110,7 +195,8 @@ class QCATester:
             "depthOut": depth_out,
             "depthIn": depth_in,
             "frustrated_state": frustrated_state,
-            "qca": qca,
+            "qca": qca_readout,
+            "qca_base": qca,
             "config": config,
         }
 

@@ -1,0 +1,72 @@
+{
+  "baseline": {
+    "alpha_self_energy": 0.03471043825253391,
+    "omega_ref": 1.0,
+    "slope_sigma_vs_lambda": 0.03471043825253391,
+    "intercept_sigma_vs_lambda": 0.0534214351986836,
+    "r2": 0.9980024704917887,
+    "num_points": 4,
+    "fit_points": 3,
+    "samples": [
+      {
+        "lambda_control": 0.1,
+        "lambda_local": 0.0020591778869271126,
+        "omega_eff": 0.9465160479984754,
+        "sigma0": 0.05348395200152456
+      },
+      {
+        "lambda_control": 0.2,
+        "lambda_local": 0.00817509007588603,
+        "omega_eff": 0.9462803623843231,
+        "sigma0": 0.053719637615676885
+      },
+      {
+        "lambda_control": 0.3,
+        "lambda_local": 0.018166775405231473,
+        "omega_eff": 0.9459534713590165,
+        "sigma0": 0.05404652864098347
+      },
+      {
+        "lambda_control": 0.4,
+        "lambda_local": 0.03174497730743923,
+        "omega_eff": 0.945689235053842,
+        "sigma0": 0.05431076494615805
+      }
+    ]
+  },
+  "correlated": {
+    "alpha_self_energy": 0.03501788987686343,
+    "omega_ref": 1.0,
+    "slope_sigma_vs_lambda": 0.03501788987686343,
+    "intercept_sigma_vs_lambda": 0.05342093714318398,
+    "r2": 0.9984499918736883,
+    "num_points": 4,
+    "fit_points": 3,
+    "samples": [
+      {
+        "lambda_control": 0.1,
+        "lambda_local": 0.0020474567185128204,
+        "omega_eff": 0.9465152057454933,
+        "sigma0": 0.053484794254506696
+      },
+      {
+        "lambda_control": 0.2,
+        "lambda_local": 0.008070168267504577,
+        "omega_eff": 0.9462838244772878,
+        "sigma0": 0.05371617552271224
+      },
+      {
+        "lambda_control": 0.3,
+        "lambda_local": 0.01791278848154182,
+        "omega_eff": 0.945956592415657,
+        "sigma0": 0.054043407584343006
+      },
+      {
+        "lambda_control": 0.4,
+        "lambda_local": 0.03129494092320474,
+        "omega_eff": 0.9456819508848547,
+        "sigma0": 0.05431804911514526
+      }
+    ]
+  }
+}

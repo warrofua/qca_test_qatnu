@@ -1,0 +1,2 @@
+scenario_id,bond_cutoff,points,valid_points,best_lambda,best_slope,best_power,best_target_error,mean_target_error,median_target_error,skip_reason,estimated_dense_gib,estimated_total_dim
+N3_path_alpha0.8,3,2,2,0.4,-2.54766371631276,2.54766371631276,0.5476637163127598,0.5483788857558158,0.5483788857558158,,,

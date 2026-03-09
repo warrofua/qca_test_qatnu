@@ -1,0 +1,2 @@
+topology,gamma_corr,n_points,best_lambda,best_spin2_power,best_spin2_slope,best_spin2_residual,best_spin2_r2,best_postulate_residual,mean_postulate_residual,max_postulate_residual,p90_postulate_residual,frac_postulate_gt_0_2,mean_gamma_corr_effective,min_gamma_corr_effective,max_gamma_corr_effective
+star,-0.25,1,0.8,-0.04259346539017206,0.04259346539017206,2.042593465390172,0.9823541946484661,0.40942930491376806,0.40942930491376806,0.40942930491376806,0.40942930491376806,1.0,0.0,0.0,0.0

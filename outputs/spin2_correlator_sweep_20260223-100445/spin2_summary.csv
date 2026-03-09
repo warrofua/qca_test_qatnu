@@ -1,0 +1,2 @@
+scenario_id,points,valid_points,best_lambda,best_slope,best_power,best_target_error,mean_target_error,median_target_error
+N5_path_alpha0.8,3,3,1.0,-3.1184077749234027,3.1184077749234027,1.1184077749234027,1.1271211151162284,1.1261780118920535

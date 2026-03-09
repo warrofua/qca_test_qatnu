@@ -1,0 +1,35 @@
+# Critical Slowing Scan
+
+Generated: 2026-02-24T11:17:54
+
+## Configuration
+- N: 3
+- topologies: path
+- lambdas: 0.9,1.0
+- bond_cutoff: 3
+- hotspot_multiplier: 1.5
+- t_max: 8.0
+- n_times: 41
+- lambda_proxy: log
+- tail_frac: 0.2
+- rel_tol: 0.08
+- sustain_points: 8
+- min_scale: 1e-10
+- solver_backend: dense
+- auto_dense_threshold: 12000
+- iterative_tol: 1e-09
+- iterative_maxiter: 0
+
+## Summary
+
+```csv
+topology,backend,hamiltonian_mode,lambda,tau_eq_global,tau_eq_probe,tau_dephase_global,tau_dephase_probe,tau_eq_site_var,tau_dephase_site_var,tau_eq_mode1,tau_dephase_mode1,tau_eq_mode_dom,tau_dephase_mode_dom,tail_mean_global,tail_std_global,threshold_global,tail_mean_probe,tail_std_probe,threshold_probe,tail_mean_site_var,tail_std_site_var,threshold_site_var,tail_mean_mode1,tail_std_mode1,threshold_mode1,tail_mean_mode_dom,tail_std_mode_dom,threshold_mode_dom,final_global_lambda,final_probe_gap,max_abs_probe_gap,final_site_var,final_mode1_amp,final_mode_dom_amp,max_abs_mode1_amp,max_abs_mode_dom_amp,mode1_index,mode_dom_index,mode1_eigval,mode_dom_eigval,dim_nominal,dim_hotspot
+path,dense,dense,0.9,,,1.4000000000000001,1.4000000000000001,,3.4000000000000004,,,,1.4000000000000001,0.10825863314629791,0.02501925337002235,0.00497723068092163,0.08119397485972342,0.01876444002751675,0.003732923010691222,0.0015432368362372608,0.0006951963183309529,0.00010225913852967644,-1.4257600928354468e-17,1.0376180686712833e-16,,-0.06629460286489591,0.015321101125490798,0.003047918875095816,0.10022402071963453,0.07516801553972596,0.10843081139575406,0.0012556067911512164,9.998170214424894e-17,-0.061374427683308364,1.7509644982011383e-16,0.08853338677185235,1,2,0.9999999999999997,3.0,72,72
+path,dense,dense,1.0,,,1.6,1.6,,3.6,,,,1.6,0.1339965540462766,0.02478223030067801,0.006137286910715678,0.1004974155347074,0.018586672725508402,0.004602965183036754,0.002321154429369072,0.0008461564425681281,0.00016254596108062526,-1.2160560189325204e-16,1.5800938138060767e-16,,-0.08205579617616157,0.015175954731200309,0.0037583053340788774,0.1279308904716195,0.09594816785371461,0.13995858402736844,0.0020457890921076883,-2.992134454663265e-17,-0.07834135099883754,3.9252066862099575e-16,0.1142757053298323,1,2,0.9999999999999997,3.0,72,72
+```
+
+## Artifacts
+- `outputs/critical_slowing_backendcheck_dense_20260224/summary.csv`
+- `outputs/critical_slowing_backendcheck_dense_20260224/tau_eq_probe_vs_lambda.png`
+- `outputs/critical_slowing_backendcheck_dense_20260224/tau_dephase_vs_lambda.png`
+- `outputs/critical_slowing_backendcheck_dense_20260224/timeseries_samples.json`

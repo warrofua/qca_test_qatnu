@@ -1,0 +1,49 @@
+{
+  "config": {
+    "N": 4,
+    "omega": 1.0,
+    "alpha": 0.8,
+    "deltaB": 5.0,
+    "lambda": 1.058,
+    "hotspotMultiplier": 3.0,
+    "kappa": 0.1,
+    "k0": 4,
+    "bondCutoff": 4,
+    "J0": 0.01,
+    "gamma": 0.0,
+    "probeOut": 0,
+    "probeIn": 1,
+    "tMax": 20.0,
+    "edges": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        3
+      ]
+    ]
+  },
+  "measured": {
+    "depth_out": 0.2824561651585505,
+    "depth_in": 0.5314551969875386,
+    "legacy_expr_out": 0.2824561651585505,
+    "legacy_expr_in": 0.5314551969875384,
+    "legacy_minus_current_out": 0.0,
+    "legacy_minus_current_in": -2.220446049250313e-16
+  },
+  "frequencies": {
+    "omega_out": 0.9330530181161687,
+    "omega_in": 0.6220353454107791
+  },
+  "residuals": {
+    "current_semantics": 0.193560504777191,
+    "legacy_expression": 0.1935605047771911,
+    "delta": 1.1102230246251565e-16
+  }
+}
