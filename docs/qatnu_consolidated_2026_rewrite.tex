@@ -24,7 +24,7 @@
   linkcolor=blue!50!black,
   citecolor=blue!50!black,
   urlcolor=blue!50!black,
-  pdftitle={SRQID/QATNU as a Unitary Lattice Testbed for Emergent Gravity},
+  pdftitle={SRQID/QATNU as a Unitary Lattice Testbed for Scalar Emergent Geometry},
   pdfauthor={OpenAI for the user}
 }
 
@@ -37,8 +37,8 @@
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 \newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
 
-\title{\textbf{SRQID/QATNU as a Unitary Lattice Testbed for Emergent Gravity:}\\
-\textbf{Consolidated 2026 Status, Topology Dependence, and Open Tensor Problems}}
+\title{\textbf{SRQID/QATNU as a Unitary Lattice Testbed for Scalar Emergent Geometry:}\\
+\textbf{Closed Scalar Observable Chain, Topology Dependence, and Tensor Falsification}}
 \author{Prepared from the repository papers, decision logs, and current docs}
 \date{March 9, 2026}
 
@@ -46,11 +46,19 @@
 \maketitle
 
 \begin{abstract}
-This paper is a full rewrite of the current SRQID/QATNU story after the February--March 2026 decision-log cycle. Its purpose is not to maximize ambition, but to state as cleanly as possible what is established, what has advanced, and what must be downgraded to conjecture. The stable core is a strictly unitary, measurement-free, bounded-degree lattice model with frustration-controlled bond promotions, strong numerical causality checks, and a reproducible small-$N$ constitutive clock law
+This paper is a full rewrite of the current SRQID/QATNU story after the February--March 2026 decision-log cycle. Its purpose is not to maximize ambition, but to state as cleanly as possible what is established, what has advanced, and what must be downgraded to conjecture. The stable core is a strictly unitary, measurement-free, bounded-degree lattice model with frustration-controlled bond promotions, strong numerical causality checks, and a reproducible small-$N$ scalar observable chain:
+\[
+\text{local lattice dynamics}
+\rightarrow
+\text{source-induced scalar load }\Lambda_i
+\rightarrow
+\text{clock/redshift observables}.
+\]
+At the operational level this chain is organized by the constitutive law
 \[
 \omega_{\mathrm{eff}}^{(i)} = \frac{\omega}{1+\alpha \Lambda_i}.
 \]
-The most important advances relative to the 2025 papers are: explicit non-1D topology studies, deep-time critical-slowing diagnostics, perturbative and self-energy routes toward interpreting $\alpha$ as a response coefficient, an iterative backend that makes higher-cutoff $N=5$ scans practical, and a much stricter tensor-diagnostic program. The most important negative result is that several stronger earlier claims do not survive scrutiny in their original form: phase landmarks shift materially under hotspot preparation and phenomenological knobs, no-retuning topology transfer fails, the original $\chi$-based spin-2 evidence does not hold up, and the newer bond-correlator hint does not survive the March 2026 background-subtracted TT checks as a robust tensor sector. The correct present reading is therefore conservative: SRQID/QATNU is a falsifiable unitary lattice testbed for scalar clock renormalization and topology-conditioned emergent geometry, while a genuine universal tensor sector, continuum closure, and large-scale phenomenology remain open.
+The most important advances relative to the 2025 papers are: explicit non-1D topology studies, deep-time critical-slowing diagnostics, perturbative and self-energy routes toward interpreting $\alpha$ as a response coefficient, an iterative backend that makes higher-cutoff $N=5$ scans practical, and a much stricter tensor-diagnostic program. The most important negative result is that several stronger earlier claims do not survive scrutiny in their original form: phase landmarks shift materially under hotspot preparation and phenomenological knobs, no-retuning topology transfer fails, the original $\chi$-based spin-2 evidence does not hold up, and the newer bond-correlator hint does not survive the March 2026 background-subtracted TT checks as a robust tensor sector. The correct present reading is therefore conservative: SRQID/QATNU is a falsifiable unitary lattice testbed for scalar emergent geometry and topology-conditioned clock/redshift observables, while a genuine universal tensor sector, continuum closure, and large-scale phenomenology remain open.
 \end{abstract}
 
 \section{Introduction}
@@ -87,7 +95,7 @@ Third, it treats failure as informative rather than embarrassing. The no-retunin
 
 Fourth, it separates the scalar background problem from the tensor problem. The scalar clock-renormalization story is currently much stronger than the spin-2 story, and the paper is organized accordingly.
 
-\section{Canonical model and operational protocol}
+\section{Canonical model and closed scalar observable chain}
 
 \subsection{Implemented Hamiltonian}
 
@@ -153,6 +161,65 @@ The scalar constitutive law is Postulate~1:
 \label{eq:postulate1}
 \end{equation}
 The November 2025 status paper correctly identified this law as the practical bridge between the microscopic simulator and the emergent-clock story. The February 2026 results do not remove that bridge, but they do force a narrower interpretation: Eq.~\eqref{eq:postulate1} is a useful small-$N$ constitutive law whose parameters and landmarks depend on topology and preparation protocol.
+
+\subsection{Closed scalar observable chain}
+
+The cleanest theorem candidate currently supported by the repository is not a tensor statement. It is the following scalar chain:
+\begin{equation}
+\text{local lattice dynamics}
+\rightarrow
+\text{source-induced bond occupation}
+\rightarrow
+\text{sitewise scalar load }\Lambda_i
+\rightarrow
+\text{clock/redshift observables}.
+\label{eq:scalar-chain}
+\end{equation}
+
+Concretely, define the bond occupation operator by
+\begin{equation}
+n_{ij} = \sum_m m\,\Pi_{ij}^{(m)},
+\label{eq:bond-occupation}
+\end{equation}
+and define the sitewise scalar load by the operational dilute-regime expression
+\begin{equation}
+\Lambda_i
+\equiv
+\sum_{j\in \partial i}\log\!\bigl(1+\langle n_{ij}\rangle\bigr).
+\label{eq:lambda-operational}
+\end{equation}
+Then the primary observable family closes immediately:
+\begin{equation}
+\omega_{\mathrm{eff}}^{(i)}
+=
+\frac{\omega}{1+\alpha \Lambda_i},
+\qquad
+\frac{\omega_{\mathrm{eff}}^{(a)}}{\omega_{\mathrm{eff}}^{(b)}}
+=
+\frac{1+\alpha\Lambda_b}{1+\alpha\Lambda_a},
+\qquad
+z_{a\leftarrow b}
+=
+\frac{1+\alpha\Lambda_a}{1+\alpha\Lambda_b}-1.
+\label{eq:redshift-family}
+\end{equation}
+
+The scientific content of Eq.~\eqref{eq:redshift-family} is straightforward: a localized promoted source changes edge occupations; those occupations define a sitewise scalar load $\Lambda_i$; and that load renormalizes local clock rates and the associated lattice redshift ratios. This is the strongest end-to-end chain currently supported by the code, decision logs, and reproducible figures.
+
+At this stage it is important to state what Eq.~\eqref{eq:redshift-family} does \emph{not} claim. It is not yet a continuum theorem, not yet a tensor derivation, and not yet a proof that the scalar load composes into full gravity at large scale. It is a closed \emph{lattice-internal observable chain}, and that is exactly why it should now be the center of the paper.
+
+\subsection{Derived-\texorpdfstring{$\alpha$}{alpha} route versus phenomenological-\texorpdfstring{$\alpha$}{alpha} scans}
+
+The perturbative note in the repository gives the cleanest currently available route for interpreting $\alpha$ as a derived scalar susceptibility rather than only a fit knob. In the dilute weak-coupling regime it yields the schematic scaling
+\begin{equation}
+\alpha_i
+\approx
+\frac{2\lambda^2}{\omega^2\Delta_{\mathrm{eff}}}\,\bar F_i,
+\label{eq:alpha-pert}
+\end{equation}
+with $\bar F_i$ the local frustration-weighted occupation average. This is conceptually important because it ties the scalar constitutive law to the microscopic promotion mechanism.
+
+However, Eq.~\eqref{eq:alpha-pert} should still be treated as a \emph{supporting derivation route}, not as a numerically closed replacement for the phenomenological $\alpha$ used in the main scans. The current production workflow still studies scan values such as $\alpha=0.6,0.8,1.0$, and the bridge between those phenomenological values and the microscopic susceptibility extraction is not yet fully closed.
 
 \subsection{Preparation and readout protocols}
 
@@ -452,14 +519,27 @@ They may still be valuable as long-range motivations. But after the February 202
 A one-sentence thesis that accurately fits the current repository is:
 
 \begin{quote}
-\emph{SRQID/QATNU is a strictly unitary, measurement-free, bounded-degree quantum lattice model with strong causal numerics, a reproducible small-$N$ scalar clock-renormalization law, and topology-dependent dynamical structure; it is a falsifiable testbed for emergent-gravity ideas, not yet a completed theory of gravity.}
+\emph{SRQID/QATNU is a strictly unitary, measurement-free, bounded-degree quantum lattice model in which source-induced bond promotion generates an operational scalar load $\Lambda$ that renormalizes local clock rates and defines a family of topology-dependent lattice redshift observables.}
 \end{quote}
 
 That is less dramatic than some earlier language, but it is scientifically stronger because it matches the current evidence.
 
-\subsection{A conservative scalar continuum bridge}
+\subsection{Lattice shell averages and optional effective closure}
 
-The repo now has a reasonably solid \emph{scalar} story but still lacks a clean continuum closure that turns shell-averaged promotions into a nonsingular radial profile. The most conservative effective closure consistent with the current scalar narrative is to introduce a coarse-grained radial field
+The repo now has a reasonably solid \emph{scalar} story but still lacks a clean continuum closure that turns shell-averaged promotions into a nonsingular radial profile. The safest radial presentation is therefore still lattice-internal:
+\begin{equation}
+\Lambda_{\mathrm{shell}}(r)
+=
+\frac{1}{|S_r|}\sum_{i\in S_r}\Lambda_i,
+\qquad
+\omega_{\mathrm{eff}}(r)
+=
+\frac{\omega}{1+\alpha \Lambda_{\mathrm{shell}}(r)}.
+\label{eq:shell-average}
+\end{equation}
+Equation~\eqref{eq:shell-average} keeps the scalar theorem entirely inside the measured lattice observables. It is the right main-text closure because it does not assume a continuum ansatz that the simulator has not yet derived.
+
+If one wants an \emph{effective} continuum bridge beyond the lattice theorem, the most conservative ansatz consistent with the current scalar narrative is to introduce a coarse-grained radial field
 \begin{equation}
 \Lambda_{\mathrm{cg}}(r)
 =
@@ -494,9 +574,10 @@ In the weak-field regime,
 
 This is a sensible next-step bridge for the scalar sector, but it must be stated carefully:
 \begin{enumerate}
+    \item Eq.~\eqref{eq:shell-average} is the stronger present statement because it stays inside measured lattice data.
     \item Eq.~\eqref{eq:j0} is an effective coarse-grained closure, not yet a derived theorem of the simulator.
     \item It is \emph{not} by itself a spin-2 derivation.
-    \item It should be used as a background around which any future tensor sector is defined, not as a substitute for that tensor sector.
+    \item It should be used as an optional effective background around which any future tensor sector is defined, not as a substitute for that tensor sector.
 \end{enumerate}
 
 \subsection{What the next decisive experiments should be}
@@ -592,7 +673,7 @@ That is already enough for a serious paper.
 
 The proper next-era framing is therefore not ``new era of physics achieved,'' but rather:
 \begin{quote}
-\emph{a disciplined unitary lattice testbed has been built, its scalar sector is quantitatively interesting, its topology dependence is real, and its tensor sector has now been constrained tightly enough that failure is scientifically informative rather than merely disappointing.}
+\emph{a disciplined unitary lattice testbed has been built, its scalar observable chain now closes cleanly enough to stand as the core result, its topology dependence is real, and its tensor sector has now been constrained tightly enough that failure is scientifically informative rather than merely disappointing.}
 \end{quote}
 
 That is the rewrite this repository now deserves.
